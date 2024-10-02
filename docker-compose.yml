@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  soderialanueva:
+    image: postgres:latest
+    container_name: soderia-la-nueva-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: soderialanueva
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
