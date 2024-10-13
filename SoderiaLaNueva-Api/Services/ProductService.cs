@@ -166,7 +166,7 @@ namespace SoderiaLaNueva_Api.Services
             product.Name = rq.Name;
             product.Price = rq.Price;
             product.TypeId = rq.TypeId;
-            product.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+            product.UpdatedAt = DateTime.UtcNow;
 
             if (!ValidateFields(product))
                 return response.SetError(Messages.Error.FieldsRequired());

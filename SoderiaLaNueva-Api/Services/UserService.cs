@@ -212,7 +212,7 @@ namespace SoderiaLaNueva_Api.Services
             }
             // Update user data
             user.PhoneNumber = rq.PhoneNumber;
-            user.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+            user.UpdatedAt = DateTime.UtcNow;
 
             if (!ValidateFields(user))
                 return response.SetError(Messages.Error.FieldsRequired());
