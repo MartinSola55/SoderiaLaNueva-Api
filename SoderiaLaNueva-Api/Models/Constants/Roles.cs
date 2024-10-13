@@ -4,7 +4,7 @@ namespace SoderiaLaNueva_Api.Models.Constants
     public static class Roles
     {
         public const string Admin = "Admin";
-        public const string Dealer = "Dealer";
+        public const string Dealer = "Repartidor";
 
         public static bool Validate(string role)
         {

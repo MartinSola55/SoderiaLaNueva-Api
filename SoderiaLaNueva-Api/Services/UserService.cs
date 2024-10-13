@@ -67,10 +67,9 @@ namespace SoderiaLaNueva_Api.Services
                         FullName = x.FullName,
                         Email = x.Email,
                         PhoneNumber = x.PhoneNumber,
-                        CreatedAt = x.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                        CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                         Role = x.Role.Name
                     })
-                    .OrderBy(x => x.FullName)
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
                     .ToListAsync()

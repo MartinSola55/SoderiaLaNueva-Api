@@ -19,10 +19,14 @@ public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContex
         builder.Ignore<IdentityRoleClaim<string>>();
 
         builder.Entity<ApiUser>().HasQueryFilter(x => x.DeletedAt == null);
+        builder.Entity<Product>().HasQueryFilter(x => x.DeletedAt == null);
+        builder.Entity<ProductType>().HasQueryFilter(x => x.DeletedAt == null);
     }
 
     // Entities
     public DbSet<ApiUser> User { get; set; }
     public DbSet<IdentityRole> Role { get; set; }
+    public DbSet<Product> Product { get; set; }
+    public DbSet<ProductType> ProductType { get; set; }
 
 }

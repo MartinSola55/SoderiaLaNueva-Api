@@ -9,6 +9,7 @@
             services.AddScoped<HomeService>();
             services.AddScoped<AuthService>();
             services.AddScoped<UserService>();
+            services.AddScoped<ProductService>();
         }
     }
 }

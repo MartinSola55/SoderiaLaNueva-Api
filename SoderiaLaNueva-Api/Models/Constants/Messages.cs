@@ -48,6 +48,10 @@
             {
                 return "Ya existe " + entityName + " con " + fieldName;
             }
+            public static string DuplicateEntity(string entity, bool femine = false)
+            {
+                return "Ya existe un" + (femine ? "a" : "") + " " + entity + " con los datos ingresados.";
+            }
             public static string InvalidPassword()
             {
                 return "La contraseña debe contener al menos 8 caracteres, una letra mayúscula, una letra minúscula, un número y un caracter especial.";
