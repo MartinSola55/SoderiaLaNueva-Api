@@ -17,6 +17,6 @@ namespace SoderiaLaNueva_Api.Models
         public DateTime? DeletedAt { get; set; }
 
         public virtual Cart Cart { get; set; } = null!;
-        public virtual ProductType ProductType { get; set; } = null!;
+        public virtual ProductType Type { get; set; } = null!;
     }
 }

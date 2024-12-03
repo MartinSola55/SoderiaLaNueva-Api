@@ -11,7 +11,6 @@ namespace SoderiaLaNueva_Api.Models
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
 
-
         public virtual List<CartPaymentMethod> CartPaymentMethods { get; set; } = null!;
     }
 }

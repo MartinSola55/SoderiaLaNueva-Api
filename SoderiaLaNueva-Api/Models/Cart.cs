@@ -17,6 +17,6 @@ namespace SoderiaLaNueva_Api.Models
         public virtual Route Route { get; set; } = null!;
         public virtual Client Client { get; set; } = null!;
         public virtual List<CartProduct> Products { get; set; } = null!;
-        public virtual List<PaymentMethod> PaymentMethods { get; set; } = null!;
+        public virtual List<CartPaymentMethod> PaymentMethods { get; set; } = null!;
     }
 }
