@@ -12,9 +12,9 @@
             {
                 return "No tienes permisos para realizar esta operación.";
             }
-            public static string EntityNotFound(string entityName)
+            public static string EntityNotFound(string entityName, bool femine = false)
             {
-                return entityName + " no encontrado.";
+                return entityName + " no encontrad" + (femine ? "a" : "o") + ".";
             }
             public static string SaveEntity(string entityName)
             {
@@ -52,6 +52,10 @@
             {
                 return "Ya existe un" + (femine ? "a" : "") + " " + entity + " con los datos ingresados.";
             }
+            public static string DuplicateRoute()
+            {
+                return "Ya existe una ruta para el repartidor y el día seleccionados.";
+            }
             public static string InvalidPassword()
             {
                 return "La contraseña debe contener al menos 8 caracteres, una letra mayúscula, una letra minúscula, un número y un caracter especial.";
@@ -88,24 +92,39 @@
             {
                 return "El usuario con el que intentas acceder no posee un rol.";
             }
-            public static string UserDoesntHavePermission()
+            public static string UserWithoutHavePermission()
             {
                 return "Tu rol no te permite realizar esta acción.";
+            }
+            public static string UserNotDealer()
+            {
+                return "El usuario seleccionado no es un repartidor.";
             }
         }
         public class CRUD
         {
-            public static string EntityCreated(string entityName)
+            public static string EntityCreated(string entityName, bool femine = false)
             {
-                return entityName + " creado correctamente.";
+                return entityName + " cread" + (femine ? "a" : "o") + " correctamente.";
             }
-            public static string EntityUpdated(string entityName)
+            public static string EntityUpdated(string entityName, bool femine = false)
             {
-                return entityName + " editado correctamente.";
+                return entityName + " editad" + (femine ? "a" : "o") + " correctamente.";
             }
-            public static string EntityDeleted(string entityName)
+            public static string EntityDeleted(string entityName, bool femine = false)
             {
-                return entityName + " eliminado correctamente.";
+                return entityName + " eliminad" + (femine ? "a" : "o") + " correctamente.";
+            }
+        }
+        public class Operations
+        {
+            public static string RouteClosed()
+            {
+                return "La ruta ha sido cerrada correctamente.";
+            }
+            public static string ClientsUpdated()
+            {
+                return "Los clientes han sido actualizados correctamente.";
             }
         }
     }

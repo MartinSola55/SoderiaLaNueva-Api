@@ -760,7 +760,7 @@ namespace SoderiaLaNueva_Api.Migrations
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.CartProduct", b =>
                 {
                     b.HasOne("SoderiaLaNueva_Api.Models.Cart", "Cart")
-                        .WithMany()
+                        .WithMany("Products")
                         .HasForeignKey("CartId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -938,6 +938,8 @@ namespace SoderiaLaNueva_Api.Migrations
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.Cart", b =>
                 {
                     b.Navigation("PaymentMethods");
+
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.Client", b =>

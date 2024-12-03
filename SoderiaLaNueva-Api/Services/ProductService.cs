@@ -1,19 +1,16 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Product;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class ProductService(APIContext context, TokenService tokenService, AuthService authService)
+    public class ProductService(APIContext context, AuthService authService)
     {
         private readonly APIContext _db = context;
-        private readonly Token _token = tokenService.GetToken();
         private readonly AuthService _authService = authService;
 
         #region Methods
@@ -115,12 +112,12 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.FieldsRequired());
 
             // Validate type
-            if (await _db.ProductType.FirstOrDefaultAsync(x => x.Id == rq.TypeId) == null)
+            if (!await _db.ProductType.AnyAsync(x => x.Id == rq.TypeId))
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
             // Duplicate product
-            if (await _db.Product.FirstOrDefaultAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId) != null)
-                return response.SetError(Messages.Error.DuplicateEntity("producto"));
+            if (await _db.Product.AnyAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId))
+                return response.SetError(Messages.Error.DuplicateEntity("producto y tipo"));
 
             // Save changes
             await _db.Product.AddAsync(product);
