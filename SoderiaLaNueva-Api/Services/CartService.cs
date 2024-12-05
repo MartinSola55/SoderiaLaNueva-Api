@@ -1,5 +1,4 @@
-﻿using Azure;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
@@ -185,9 +184,91 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        public async Task<GenericResponse> Delete(DeleteRequest rq)
+        {
+            var response = new GenericResponse();
+
+            if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
+                return response.SetError(Messages.Error.Unauthorized());
+
+            if (!await _db.Cart.AnyAsync(x => x.Id == rq.Id && !x.Route.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Bajada", true));
+
+            var cart = await _db
+                .Cart
+                .Include(x => x.Client)
+                    .ThenInclude(x => x.Products)
+                .Include(x => x.PaymentMethods)
+                .Include(x => x.Products)
+                .FirstAsync(x => x.Id == rq.Id);
+
+            if (cart.Products.Count > 0)
+            {
+                var availableProducts = await _db
+                    .SubscriptionRenewalProduct
+                    .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
+                    .Where(x => x.CreatedAt.Month == DateTime.UtcNow.Month)
+                    .Where(x => x.CreatedAt.Year == DateTime.UtcNow.Year)
+                    .ToListAsync();
+
+                foreach (var product in cart.Products)
+                {
+                    var clientProduct = cart
+                        .Client
+                        .Products
+                        .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
+
+                    // Subscription products
+                    var availableType = availableProducts
+                        .Where(x => x.ProductTypeId == product.ProductTypeId)
+                        .FirstOrDefault();
+
+                    if (availableType is null)
+                        return response.SetError(Messages.Error.EntitiesNotFound("productos del abono"));
+
+                    // Restore the available quantity in the first product of the type
+                    availableType.AvailableQuantity += product.SubscriptionQuantity;
+
+                    // Restore stock
+                    if (clientProduct is not null)
+                    {
+                        clientProduct.Stock -= product.SoldQuantity;
+                        clientProduct.Stock -= product.SubscriptionQuantity;
+                        clientProduct.Stock += product.ReturnedQuantity;
+                    }
+
+                    cart.Client.Debt -= product.SoldQuantity * product.SettedPrice;
+                    product.DeletedAt = DateTime.UtcNow;
+                }
+            }
+
+            // Payment methods
+            if (cart.PaymentMethods.Count > 0)
+            {
+                foreach (var method in cart.PaymentMethods)
+                {
+                    cart.Client.Debt += method.Amount;
+                    method.DeletedAt = DateTime.UtcNow;
+                }
+            }
+
+            cart.DeletedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.CartDeleted();
+            return response;
+        }
         #endregion
 
-        #region Cart Status
+        #region Cart status
         public async Task<GenericResponse> UpdateStatus(UpdateStatusRequest rq)
         {
             var response = new GenericResponse();

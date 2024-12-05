@@ -52,7 +52,7 @@
             {
                 return "El campo " + fieldName + " no es válido.";
             }
-            public static string UniqueField(string fieldName,string entityName)
+            public static string UniqueField(string fieldName, string entityName)
             {
                 return "Ya existe " + entityName + " con " + fieldName;
             }
@@ -153,6 +153,10 @@
             public static string CartConfirmed()
             {
                 return "La bajada ha sido confirmada.";
+            }
+            public static string CartDeleted()
+            {
+                return "La bajada ha sido eliminada correctamente.";
             }
         }
     }

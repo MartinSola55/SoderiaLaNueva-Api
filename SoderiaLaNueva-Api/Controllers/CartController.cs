@@ -9,6 +9,7 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly CartService _cartService = cartService;
 
+        #region Basic methods
         [HttpGet]
         public async Task<GenericResponse<GetOneResponse>> GetOne([FromQuery] GetOneRequest rq)
         {
@@ -22,6 +23,15 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<GenericResponse> Delete([FromBody] DeleteRequest rq)
+        {
+            return await _cartService.Delete(rq);
+        }
+
+        #endregion
+
+        #region Cart status
+        [HttpPost]
         public async Task<GenericResponse> UpdateStatus([FromBody] UpdateStatusRequest rq)
         {
             return await _cartService.UpdateStatus(rq);
@@ -32,5 +42,6 @@ namespace SoderiaLaNueva_Api.Controllers
         {
             return await _cartService.RestoreStatus(rq);
         }
+        #endregion
     }
 }
