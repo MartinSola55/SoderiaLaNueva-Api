@@ -32,14 +32,23 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public string Address { get; set; } = null!;
                 public string? Observations { get; set; } = null!;
                 public List<ClientProductItem> Products { get; set; } = [];
+                public List<ClientSubsctiptionProductItem> SubscriptionProducts { get; set; } = [];
 
             }
 
             public class ClientProductItem
             {
+                public int ProductId { get; set; }
                 public string Name { get; set; } = null!;
                 public decimal Price { get; set; }
                 public int Stock { get; set; }
+            }
+
+            public class ClientSubsctiptionProductItem
+            {
+                public int TypeId { get; set; }
+                public string Name { get; set; } = null!;
+                public int Available { get; set; }
             }
 
             public class ProductItem

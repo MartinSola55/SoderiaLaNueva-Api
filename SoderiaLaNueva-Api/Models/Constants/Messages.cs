@@ -16,6 +16,10 @@
             {
                 return entityName + " no encontrad" + (femine ? "a" : "o") + ".";
             }
+            public static string EntitiesNotFound(string entitiesName, bool femine = false)
+            {
+                return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s" + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
+            }
             public static string SaveEntity(string entityName)
             {
                 return "Ha ocurrido un error al intentar guardar " + entityName + ". Por favor, intenta de nuevo.";
@@ -39,6 +43,10 @@
             public static string FieldGraterOrEqualThanZero(string fieldName)
             {
                 return "El campo " + fieldName + " debe ser mayor o igual a cero.";
+            }
+            public static string FieldGraterThanMax(string fieldName)
+            {
+                return "El campo " + fieldName + " debe ser menor a " + int.MaxValue + ".";
             }
             public static string InvalidField(string fieldName)
             {
@@ -100,6 +108,14 @@
             {
                 return "El usuario seleccionado no es un repartidor.";
             }
+            public static string CartAlreadyConfirmed()
+            {
+                return "La bajada ya ha sido confirmada.";
+            }
+            public static string NotEnoughStock(string productName)
+            {
+                return "No hay suficiente stock de " + productName + ".";
+            }
         }
         public class CRUD
         {
@@ -125,6 +141,18 @@
             public static string ClientsUpdated()
             {
                 return "Los clientes han sido actualizados correctamente.";
+            }
+            public static string CartStatusUpdated()
+            {
+                return "Se ha actualizado el estado de la bajada.";
+            }
+            public static string CartStatusRestored()
+            {
+                return "Se ha restablecido la bajada.";
+            }
+            public static string CartConfirmed()
+            {
+                return "La bajada ha sido confirmada.";
             }
         }
     }

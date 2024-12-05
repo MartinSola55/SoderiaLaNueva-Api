@@ -172,6 +172,14 @@ namespace SoderiaLaNueva_Api.Services
         #region Dynamic Methods
         public async Task<GenericResponse<GetDynamicsResponse>> GetDynamicRoute(GetDynamicsRequest rq)
         {
+            var response = new GenericResponse<GetDynamicsResponse>();
+
+            if (!_auth.IsAdmin() && !await _db.Route.AnyAsync(x => x.Id == rq.Id && x.DealerId == _token.UserId && !x.IsStatic))
+                return response.SetError(Messages.Error.Unauthorized());
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.Id && !x.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Planilla", true));
+
             var query = _db
                 .Route
                 .Include(x => x.Carts)
@@ -185,54 +193,65 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.Products)
                     .ThenInclude(x => x.Product)
                     .ThenInclude(x => x.Type)
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                    .ThenInclude(x => x.SubscriptionRenewals)
+                    .ThenInclude(x => x.RenewalProducts)
+                    .ThenInclude(x => x.Type)
                 .Include(x => x.Dealer)
                 .Where(x => !x.IsStatic && x.Id == rq.Id)
                 .AsQueryable();
 
-            return new GenericResponse<GetDynamicsResponse>
+            response.Data = await query.Select(x => new GetDynamicsResponse
             {
-                Data = await query.Select(x => new GetDynamicsResponse
+                Id = x.Id,
+                Dealer = x.Dealer.FullName,
+                DeliveryDay = x.DeliveryDay,
+                Carts = x.Carts.Select(y => new GetDynamicsResponse.CartItem
                 {
-                    Id = x.Id,
-                    Dealer = x.Dealer.FullName,
-                    DeliveryDay = x.DeliveryDay,
-                    Carts = x.Carts.Select(y => new GetDynamicsResponse.CartItem
+                    Id = y.Id,
+                    Status = y.Status,
+                    CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    UpdatedAt = y.UpdatedAt.HasValue ? y.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : string.Empty,
+                    PaymentMethods = y.PaymentMethods.Select(pm => new GetDynamicsResponse.CartItem.PaymentItem
                     {
-                        Id = y.Id,
-                        Status = y.Status,
-                        CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
-                        UpdatedAt = y.UpdatedAt.HasValue ? y.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : string.Empty,
-                        PaymentMethods = y.PaymentMethods.Select(pm => new GetDynamicsResponse.CartItem.PaymentItem
+                        Name = pm.PaymentMethod.Name,
+                        Amount = pm.Amount
+                    }).ToList(),
+                    Products = y.Products.Select(p => new GetDynamicsResponse.CartItem.ProductItem
+                    {
+                        Name = p.Type.Name,
+                        Price = p.SettedPrice,
+                        SoldQuantity = p.SoldQuantity,
+                        ReturnedQuantity = p.ReturnedQuantity,
+                        SubscriptionQuantity = p.SubscriptionQuantity
+                    }).ToList(),
+                    Client = new GetDynamicsResponse.CartItem.ClientItem
+                    {
+                        Id = y.ClientId,
+                        Name = y.Client.Name,
+                        Address = y.Client.Address,
+                        Phone = y.Client.Phone,
+                        Debt = y.Client.Debt,
+                        Observations = y.Client.Observations,
+                        Products = y.Client.Products.Select(z => new GetDynamicsResponse.CartItem.ClientProductItem
                         {
-                            Name = pm.PaymentMethod.Name,
-                            Amount = pm.Amount
+                            ProductId = z.ProductId,
+                            Name = z.Product.Type.Name,
+                            Price = z.Product.Price,
+                            Stock = z.Stock
                         }).ToList(),
-                        Products = y.Products.Select(p => new GetDynamicsResponse.CartItem.ProductItem
+                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicsResponse.CartItem.ClientSubsctiptionProductItem
                         {
-                            Name = p.Type.Name,
-                            Price = p.SettedPrice,
-                            SoldQuantity = p.SoldQuantity,
-                            ReturnedQuantity = p.ReturnedQuantity,
-                            SubscriptionQuantity = p.SubscriptionQuantity
-                        }).ToList(),
-                        Client = new GetDynamicsResponse.CartItem.ClientItem
-                        {
-                            Id = y.ClientId,
-                            Name = y.Client.Name,
-                            Address = y.Client.Address,
-                            Phone = y.Client.Phone,
-                            Debt = y.Client.Debt,
-                            Observations = y.Client.Observations,
-                            Products = y.Client.Products.Select(z => new GetDynamicsResponse.CartItem.ClientProductItem
-                            {
-                                Name = z.Product.Type.Name,
-                                Price = z.Product.Price,
-                                Stock = z.Stock
-                            }).ToList()
-                        }
-                    }).ToList()
-                }).FirstOrDefaultAsync()
-            };
+                            TypeId = z.ProductTypeId,
+                            Name = z.Type.Name,
+                            Available = z.AvailableQuantity
+                        }).ToList()
+                    }
+                }).ToList()
+            }).FirstAsync();
+
+            return response;
         }
 
         public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes(GetDynamicRoutesRequest rq)

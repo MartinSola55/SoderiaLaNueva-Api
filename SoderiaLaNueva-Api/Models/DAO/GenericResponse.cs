@@ -22,6 +22,16 @@
             };
             return this;
         }
+
+        public GenericResponse<T> Attach(GenericResponse<T> response)
+        {
+            if (Error == null && response.Error != null)
+            {
+                Error = response.Error;
+            }
+
+            return this;
+        }
     }
 
     public class GenericResponse

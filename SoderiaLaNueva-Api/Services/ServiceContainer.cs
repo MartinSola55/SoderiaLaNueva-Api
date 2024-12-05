@@ -10,6 +10,7 @@
             services.AddScoped<AuthService>();
             services.AddScoped<UserService>();
             services.AddScoped<RouteService>();
+            services.AddScoped<CartService>();
             services.AddScoped<ProductService>();
         }
     }

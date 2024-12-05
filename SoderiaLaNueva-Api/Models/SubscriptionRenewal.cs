@@ -15,6 +15,6 @@ namespace SoderiaLaNueva_Api.Models
 
         public virtual Subscription Subscription { get; set; } = null!;
         public virtual Client Client { get; set; } = null!;
-        public virtual List<SubscriptionRenewalProduct> ProductTypes { get; set; } = null!;
+        public virtual List<SubscriptionRenewalProduct> RenewalProducts { get; set; } = null!;
     }
 }

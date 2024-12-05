@@ -895,21 +895,21 @@ namespace SoderiaLaNueva_Api.Migrations
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.SubscriptionRenewalProduct", b =>
                 {
-                    b.HasOne("SoderiaLaNueva_Api.Models.ProductType", "ProductType")
+                    b.HasOne("SoderiaLaNueva_Api.Models.ProductType", "Type")
                         .WithMany()
                         .HasForeignKey("ProductTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("SoderiaLaNueva_Api.Models.SubscriptionRenewal", "SubscriptionRenewal")
-                        .WithMany("ProductTypes")
+                        .WithMany("RenewalProducts")
                         .HasForeignKey("SubscriptionRenewalId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ProductType");
-
                     b.Navigation("SubscriptionRenewal");
+
+                    b.Navigation("Type");
                 });
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.Transfer", b =>
@@ -969,7 +969,7 @@ namespace SoderiaLaNueva_Api.Migrations
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.SubscriptionRenewal", b =>
                 {
-                    b.Navigation("ProductTypes");
+                    b.Navigation("RenewalProducts");
                 });
 #pragma warning restore 612, 618
         }
