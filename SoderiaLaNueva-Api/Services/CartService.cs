@@ -184,6 +184,152 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        public async Task<GenericResponse<UpdateResponse>> Update(UpdateRequest rq)
+        {
+            var response = new GenericResponse<UpdateResponse>();
+
+            if (!response.Attach(await ValidateEdition(rq)).Success)
+                return response;
+
+            var cart = await _db
+                .Cart
+                .Include(x => x.Client)
+                    .ThenInclude(x => x.Products)
+                .Include(x => x.PaymentMethods)
+                .Include(x => x.Products)
+                .FirstAsync(x => x.Id == rq.Id);
+
+            // Check if there are products to delete
+            var productsToDelete = cart
+                .Products
+                .Where(x => !rq.Products.Any(y => y.ProductTypeId == x.ProductTypeId))
+                .ToList();
+
+            if (productsToDelete.Count > 0)
+            {
+                foreach (var product in productsToDelete)
+                {
+                    var clientProduct = cart
+                        .Client
+                        .Products
+                        .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
+
+                    if (clientProduct is null)
+                        return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
+
+                    // Update data
+                    clientProduct.Stock -= product.SoldQuantity;
+                    clientProduct.Stock += product.ReturnedQuantity;
+                    cart.Client.Debt += product.SoldQuantity * product.SettedPrice;
+                    product.DeletedAt = DateTime.UtcNow;
+                }
+            }
+
+            // Check if there are methods to delete
+            var methodsToDelete = cart
+                .PaymentMethods
+                .Where(x => !rq.PaymentMethods.Any(y => y.PaymentMethodId == x.PaymentMethodId))
+                .ToList();
+
+            if (methodsToDelete.Count > 0)
+            {
+                foreach (var method in methodsToDelete)
+                {
+                    cart.Client.Debt += method.Amount;
+                    method.DeletedAt = DateTime.UtcNow;
+                }
+            }
+
+            // Sold products
+            if (rq.Products.Count > 0)
+            {
+                // Update or add new products
+                foreach (var product in rq.Products)
+                {
+                    var clientProduct = cart
+                        .Client
+                        .Products
+                        .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
+
+                    if (clientProduct is null)
+                        return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
+
+                    var cartProduct = cart
+                        .Products
+                        .FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+
+                    // Restore previous data and update cart product
+                    if (cartProduct is not null)
+                    {
+                        clientProduct.Stock -= cartProduct.SoldQuantity;
+                        clientProduct.Stock += cartProduct.ReturnedQuantity;
+                        cart.Client.Debt -= product.SoldQuantity * cartProduct.SettedPrice;
+
+                        cartProduct.SoldQuantity = product.SoldQuantity;
+                        cartProduct.ReturnedQuantity = product.ReturnedQuantity;
+                        cartProduct.SettedPrice = clientProduct.Product.Price;
+                        cartProduct.UpdatedAt = DateTime.UtcNow;
+                    }
+                    else if (cartProduct is null)
+                    {
+                        cart.Products.Add(new()
+                        {
+                            ProductTypeId = product.ProductTypeId,
+                            SoldQuantity = product.SoldQuantity,
+                            ReturnedQuantity = product.ReturnedQuantity,
+                            SettedPrice = clientProduct.Product.Price,
+                        });
+                    }
+
+                    // Update data with new values
+                    clientProduct.Stock += product.SoldQuantity;
+                    clientProduct.Stock -= product.ReturnedQuantity;
+                    cart.Client.Debt -= product.SoldQuantity * clientProduct.Product.Price;
+                }
+            }
+
+            // Payment methods
+            if (rq.PaymentMethods.Count > 0)
+            {
+                // Update or add new methods
+                foreach (var method in rq.PaymentMethods)
+                {
+                    var cartMethod = cart
+                        .PaymentMethods
+                        .FirstOrDefault(x => x.PaymentMethodId == method.PaymentMethodId);
+
+                    if (cartMethod is not null)
+                    {
+                        cart.Client.Debt -= cartMethod.Amount;
+                        cart.Client.Debt += method.Amount;
+                        cartMethod.Amount = method.Amount;
+                        cartMethod.UpdatedAt = DateTime.UtcNow;
+                    }
+                    else if (cartMethod is null)
+                    {
+                        cart.PaymentMethods.Add(new()
+                        {
+                            PaymentMethodId = method.PaymentMethodId,
+                            Amount = method.Amount,
+                        });
+                    }
+                }
+            }
+            cart.UpdatedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.CartUpdated();
+            return response;
+        }
+
         public async Task<GenericResponse> Delete(DeleteRequest rq)
         {
             var response = new GenericResponse();
@@ -331,6 +477,28 @@ namespace SoderiaLaNueva_Api.Services
         private async Task<GenericResponse<ConfirmResponse>> ValidateConfirmation(ConfirmRequest rq)
         {
             var response = new GenericResponse<ConfirmResponse>();
+
+            if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
+                return response.SetError(Messages.Error.Unauthorized());
+
+            if (!await _db.Cart.AnyAsync(x => x.Id == rq.Id && !x.Route.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Bajada", true));
+
+            if (rq.PaymentMethods.Any(x => x.Amount < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("monto"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity < 0 || x.SoldQuantity < 0) || rq.SubscriptionProducts.Any(x => x.Quantity < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity > int.MaxValue || x.SoldQuantity > int.MaxValue) || rq.SubscriptionProducts.Any(x => x.Quantity > int.MaxValue))
+                return response.SetError(Messages.Error.FieldGraterThanMax("cantidad"));
+
+            return response;
+        }
+
+        private async Task<GenericResponse<UpdateResponse>> ValidateEdition(UpdateRequest rq)
+        {
+            var response = new GenericResponse<UpdateResponse>();
 
             if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
                 return response.SetError(Messages.Error.Unauthorized());

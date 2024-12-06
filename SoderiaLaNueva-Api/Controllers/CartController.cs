@@ -23,6 +23,12 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<GenericResponse<UpdateResponse>> Update([FromBody] UpdateRequest rq)
+        {
+            return await _cartService.Update(rq);
+        }
+
+        [HttpPost]
         public async Task<GenericResponse> Delete([FromBody] DeleteRequest rq)
         {
             return await _cartService.Delete(rq);

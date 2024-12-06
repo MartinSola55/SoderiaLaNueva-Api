@@ -154,6 +154,10 @@
             {
                 return "La bajada ha sido confirmada.";
             }
+            public static string CartUpdated()
+            {
+                return "La bajada ha sido actualizada correctamente.";
+            }
             public static string CartDeleted()
             {
                 return "La bajada ha sido eliminada correctamente.";
