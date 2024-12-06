@@ -170,9 +170,9 @@ namespace SoderiaLaNueva_Api.Services
         #endregion
 
         #region Dynamic Methods
-        public async Task<GenericResponse<GetDynamicsResponse>> GetDynamicRoute(GetDynamicsRequest rq)
+        public async Task<GenericResponse<GetDynamicRouteResponse>> GetDynamicRoute(GetDynamicRouteRequest rq)
         {
-            var response = new GenericResponse<GetDynamicsResponse>();
+            var response = new GenericResponse<GetDynamicRouteResponse>();
 
             if (!_auth.IsAdmin() && !await _db.Route.AnyAsync(x => x.Id == rq.Id && x.DealerId == _token.UserId && !x.IsStatic))
                 return response.SetError(Messages.Error.Unauthorized());
@@ -202,23 +202,23 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => !x.IsStatic && x.Id == rq.Id)
                 .AsQueryable();
 
-            response.Data = await query.Select(x => new GetDynamicsResponse
+            response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
                 Id = x.Id,
                 Dealer = x.Dealer.FullName,
                 DeliveryDay = x.DeliveryDay,
-                Carts = x.Carts.Select(y => new GetDynamicsResponse.CartItem
+                Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
                     Status = y.Status,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                     UpdatedAt = y.UpdatedAt.HasValue ? y.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : string.Empty,
-                    PaymentMethods = y.PaymentMethods.Select(pm => new GetDynamicsResponse.CartItem.PaymentItem
+                    PaymentMethods = y.PaymentMethods.Select(pm => new GetDynamicRouteResponse.CartItem.PaymentItem
                     {
                         Name = pm.PaymentMethod.Name,
                         Amount = pm.Amount
                     }).ToList(),
-                    Products = y.Products.Select(p => new GetDynamicsResponse.CartItem.ProductItem
+                    Products = y.Products.Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
                     {
                         Name = p.Type.Name,
                         Price = p.SettedPrice,
@@ -226,7 +226,7 @@ namespace SoderiaLaNueva_Api.Services
                         ReturnedQuantity = p.ReturnedQuantity,
                         SubscriptionQuantity = p.SubscriptionQuantity
                     }).ToList(),
-                    Client = new GetDynamicsResponse.CartItem.ClientItem
+                    Client = new GetDynamicRouteResponse.CartItem.ClientItem
                     {
                         Id = y.ClientId,
                         Name = y.Client.Name,
@@ -234,14 +234,14 @@ namespace SoderiaLaNueva_Api.Services
                         Phone = y.Client.Phone,
                         Debt = y.Client.Debt,
                         Observations = y.Client.Observations,
-                        Products = y.Client.Products.Select(z => new GetDynamicsResponse.CartItem.ClientProductItem
+                        Products = y.Client.Products.Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
                         {
                             ProductId = z.ProductId,
                             Name = z.Product.Type.Name,
                             Price = z.Product.Price,
                             Stock = z.Stock
                         }).ToList(),
-                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicsResponse.CartItem.ClientSubsctiptionProductItem
+                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicRouteResponse.CartItem.ClientSubsctiptionProductItem
                         {
                             TypeId = z.ProductTypeId,
                             Name = z.Type.Name,

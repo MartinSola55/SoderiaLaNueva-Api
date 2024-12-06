@@ -42,6 +42,12 @@ namespace SoderiaLaNueva_Api.Controllers
 
         #region Dynamic Routes
         [HttpGet]
+        public async Task<GenericResponse<GetDynamicRouteResponse>> GetDynamicRoute([FromQuery] GetDynamicRouteRequest rq)
+        {
+            return await _routeService.GetDynamicRoute(rq);
+        }
+
+        [HttpGet]
         public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes([FromQuery] GetDynamicRoutesRequest rq)
         {
             return await _routeService.GetDynamicRoutes(rq);

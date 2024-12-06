@@ -1,12 +1,12 @@
 namespace SoderiaLaNueva_Api.Models.DAO.Route
 
 {
-    public class GetDynamicsRequest
+    public class GetDynamicRouteRequest
     {
         public int Id { get; set; }
     }
 
-    public class GetDynamicsResponse
+    public class GetDynamicRouteResponse
     {
         public int Id { get; set; }
         public string Dealer { get; set; } = null!;
