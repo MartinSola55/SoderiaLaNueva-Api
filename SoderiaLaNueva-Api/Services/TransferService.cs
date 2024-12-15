@@ -38,6 +38,7 @@ namespace SoderiaLaNueva_Api.Services
                     ClientName = x.Client.Name,
                     DealerName = x.Client.Dealer.FullName,
                     Amount = x.Amount,
+                    //DeliveredDate = x.DeliveredDate
                     CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 })
                 .Skip((rq.Page - 1) * Pagination.DefaultPageSize)

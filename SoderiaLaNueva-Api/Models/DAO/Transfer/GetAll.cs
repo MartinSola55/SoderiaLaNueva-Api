@@ -17,6 +17,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Transfer
             public string? DealerName { get; set; } = null!;
             public decimal Amount { get; set; }
             public string CreatedAt { get; set; } = null!;
+            public string DeliveredDate { get; set; } = null!;
         }
     }
 }

@@ -35,6 +35,7 @@ namespace SoderiaLaNueva_Api.Services
                 {
                     Id = x.Id,
                     Description = x.Description,
+                    DealerId = x.DealerId,
                     Amount = x.Amount,
                     CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 })
@@ -77,7 +78,7 @@ namespace SoderiaLaNueva_Api.Services
             response.Data = new CreateResponse
             {
                 Id = expense.Id,
-                DealerName = expense.Dealer.FullName,
+                DealerId = expense.DealerId,
                 Description = expense.Description,
                 Amount = expense.Amount
             };
@@ -123,7 +124,7 @@ namespace SoderiaLaNueva_Api.Services
             response.Data = new()
             {
                 Id = expense.Id,
-                DealerName = expense.Dealer.FullName,
+                DealerId = expense.DealerId,
                 Description = expense.Description,
                 Amount = expense.Amount
             };
