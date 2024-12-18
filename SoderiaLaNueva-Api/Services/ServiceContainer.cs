@@ -12,6 +12,7 @@
             services.AddScoped<RouteService>();
             services.AddScoped<CartService>();
             services.AddScoped<ProductService>();
+            services.AddScoped<DealerService>();
         }
     }
 }
