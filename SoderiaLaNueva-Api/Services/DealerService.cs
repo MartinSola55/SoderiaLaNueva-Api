@@ -11,6 +11,27 @@ namespace SoderiaLaNueva_Api.Services
     public class DealerService(APIContext context)
     {
         private readonly APIContext _db = context;
+        #region Combos
+        public async Task<GenericResponse<GenericComboResponse>> GetComboDealers()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = await _db.User
+                    .Where(x => x.Role.Name == Roles.Dealer)
+                    .Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x.Id,
+                        Description = x.FullName
+                    })
+                    .OrderBy(x => x.Description)
+                    .ToListAsync()
+                }
+            };
+        }
+
+        #endregion
 
         #region Methods
         public async Task<GenericResponse<GetOneResponse>> GetOne(GetOneRequest rq)

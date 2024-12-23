@@ -9,6 +9,14 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly DealerService _dealerService = dealerService;
 
+        #region Combos
+        [HttpGet]
+        public async Task<GenericResponse<GenericComboResponse>> GetComboDealers()
+        {
+            return await _dealerService.GetComboDealers();
+        }
+        #endregion
+
         #region Methods
         [HttpGet]
         public async Task<GenericResponse<GetOneResponse>> GetOne([FromQuery] GetOneRequest rq)

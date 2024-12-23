@@ -6,7 +6,7 @@
 
         public class Item
         {
-            public int Id { get; set; }
+            public string Id { get; set; } = null!;
             public string Description { get; set; } = null!;
         }
     }
