@@ -232,7 +232,6 @@ namespace SoderiaLaNueva_Api.Services
         #endregion
 
         #region Validations
-
         private static bool ValidateFields(Product entity)
         {
             if (string.IsNullOrEmpty(entity.Name) || entity.Price < 0 || entity.Price > int.MaxValue)

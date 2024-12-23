@@ -14,6 +14,7 @@
             services.AddScoped<ProductService>();
             services.AddScoped<ExpenseService>();
             services.AddScoped<TransferService>();
+            services.AddScoped<SubscriptionService>();
         }
     }
 }

@@ -53,7 +53,7 @@ namespace SoderiaLaNueva_Api.Services
 
             if (rq.DealerId == null)
                 return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
-            else if (rq.Amount <= 0)
+            if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
 
             var expense = new Expense
