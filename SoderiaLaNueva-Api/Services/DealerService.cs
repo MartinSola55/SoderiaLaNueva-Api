@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Dealer;
@@ -10,6 +11,82 @@ namespace SoderiaLaNueva_Api.Services
     public class DealerService(APIContext context)
     {
         private readonly APIContext _db = context;
+
+        #region Methods
+        public async Task<GenericResponse<GetOneResponse>> GetOne(GetOneRequest rq)
+        {
+            var response = new GenericResponse<GetOneResponse>();
+            var today = DateTime.UtcNow.AddHours(-3);
+
+            var dealer = await _db.User
+                .Where(x => x.Id == rq.DealerId)
+                .Select(x => new { x.FullName })
+                .FirstOrDefaultAsync();
+
+            if (dealer is null)
+                return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
+
+            var carts = await _db
+                .Cart
+                .Include(x => x.Route)
+                .Where(x => x.Route.DealerId == rq.DealerId && x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year && !x.Route.IsStatic)
+                .Select(x => x.Status)
+                .ToListAsync();
+
+            var totalCollected = await _db
+                .CartPaymentMethod
+                .Where(x => x.Cart.Route.DealerId == rq.DealerId && x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year)
+                .SumAsync(x => x.Amount);
+
+            var totalDebt = await _db
+                .Client
+                .Where(x => x.DealerId == rq.DealerId)
+                .SumAsync(x => x.Debt);
+
+            return new GenericResponse<GetOneResponse>()
+            {
+                Data = new GetOneResponse
+                {
+                    DealerName = dealer.FullName,
+                    TotalCarts = carts.Count,
+                    TotalCartsCompleted = carts.Count(x => x == CartStatuses.Confirmed),
+                    TotalCartsNotCompleted = carts.Count(x => x != CartStatuses.Confirmed),
+                    TotalCollected = totalCollected,
+                    TotalDebt = totalDebt
+                }
+            };
+        }
+
+        public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
+        {
+            var response = new GenericResponse<GetAllResponse>();
+
+            var query = _db
+                .User
+                .Where(x => x.Role.Name == Roles.Dealer)
+                .AsQueryable();
+
+            query = OrderQuery(query, rq.ColumnSort, rq.SortDirection);
+
+            response.Data = new GetAllResponse
+            {
+                TotalCount = await query.CountAsync(),
+                Dealers = await query
+                .Select(x => new GetAllResponse.DealerItem
+                {
+                    Id = x.Id,
+                    Name = x.FullName,
+                    Email = x.Email,
+                    CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                })
+                .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
+                .Take(Pagination.DefaultPageSize)
+                .ToListAsync()
+            };
+
+            return response;
+        }
+        #endregion
 
         #region Stats
         public async Task<GenericResponse<GetClientsNotVisitedResponse>> GetClientsNotVisited(GetClientsNotVisitedRequest rq)
@@ -171,6 +248,18 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        #endregion
+
+        #region Helpers
+        private static IQueryable<ApiUser> OrderQuery(IQueryable<ApiUser> query, string column, string direction)
+        {
+            return column switch
+            {
+                "name" => direction == "asc" ? query.OrderBy(x => x.FullName) : query.OrderByDescending(x => x.FullName),
+                "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
+                _ => query.OrderByDescending(x => x.CreatedAt),
+            };
+        }
         #endregion
     }
 }

@@ -10,6 +10,17 @@ namespace SoderiaLaNueva_Api.Controllers
         private readonly DealerService _dealerService = dealerService;
 
         #region Methods
+        [HttpGet]
+        public async Task<GenericResponse<GetOneResponse>> GetOne([FromQuery] GetOneRequest rq)
+        {
+            return await _dealerService.GetOne(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<GetAllResponse>> GetAll([FromQuery] GetAllRequest rq)
+        {
+            return await _dealerService.GetAll(rq);
+        }
 
         #endregion
 
