@@ -13,6 +13,9 @@
             services.AddScoped<CartService>();
             services.AddScoped<ProductService>();
             services.AddScoped<DealerService>();
+
+            // Stats
+            services.AddScoped<StatsService>();
         }
     }
 }

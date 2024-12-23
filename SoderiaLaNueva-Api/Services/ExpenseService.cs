@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
