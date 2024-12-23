@@ -11,11 +11,19 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly ProductService _productService = productService;
 
+        #region Combos
         [HttpGet]
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        public async Task<GenericResponse<GenericComboResponse>> GetComboProductTypes()
         {
-            return await _productService.GetFormData();
+            return await _productService.GetComboProductTypes();
         }
+
+        [HttpGet]
+        public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
+        {
+            return await _productService.GetComboProducts();
+        }
+        #endregion
 
         #region CRUD
 
