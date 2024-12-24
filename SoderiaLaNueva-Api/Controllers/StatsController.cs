@@ -28,6 +28,12 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _statsService.GetSoldProductsByMonth(rq);
         }
 
+        [HttpGet]
+        public async Task<GenericResponse<GetProductSalesResponse>> GetProductSales([FromQuery] GetProductSalesRequest rq)
+        {
+            return await _statsService.GetProductSales(rq);
+        }
+
         #endregion
     }
 }

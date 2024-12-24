@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Stats;
 using System.Data;
@@ -151,6 +152,54 @@ namespace SoderiaLaNueva_Api.Services
                     .ToList(),
                 },
             };
+        }
+
+        public async Task<GenericResponse<GetProductSalesResponse>> GetProductSales(GetProductSalesRequest rq)
+        {
+            var response = new GenericResponse<GetProductSalesResponse>();
+
+            if (!await _db.Product.AnyAsync(x => x.Id == rq.ProductId))
+                return response.SetError(Messages.Error.EntityNotFound("Producto"));
+
+            var productType = await _db
+                .Product
+                .Where(x => x.Id == rq.ProductId)
+                .Select(x => x.TypeId)
+                .FirstOrDefaultAsync();
+
+            var clientStock = await _db
+                .ClientProduct
+                .Include(x => x.Product)
+                .Where(x => x.Product.TypeId == productType && x.CreatedAt.Year == rq.Year)
+                .SumAsync(x => x.Stock);
+
+            var salesByMonth = await _db
+                .CartProduct
+                .Where(x => x.ProductTypeId == productType && x.CreatedAt.Year == rq.Year)
+                .GroupBy(x => x.CreatedAt.Month)
+                .Select(x => new
+                {
+                    Month = x.Key,
+                    Total = x.Sum(x => x.SoldQuantity) + x.Sum(x => x.SubscriptionQuantity),
+                    Amount = x.Sum(x => x.SoldQuantity * x.SettedPrice),
+                })
+                .ToListAsync();
+
+            int[] sales = new int[12];
+
+            foreach (var sale in salesByMonth)
+            {
+                sales[sale.Month - 1] = sale.Total;
+            }
+
+            response.Data = new GetProductSalesResponse()
+            {
+                Sales = sales.ToList(),
+                ClientStock = clientStock,
+                TotalSold = salesByMonth.Sum(x => x.Amount),
+            };
+
+            return response;
         }
         #endregion
     }
