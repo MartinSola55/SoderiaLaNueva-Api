@@ -120,6 +120,10 @@
             {
                 return "El cliente " + name + " se encuentra inactivo en el sistema.";
             }
+            public static string DuplicateProductType()
+            {
+                return "El cliente no puede tener más de un producto del mismo tipo.";
+            }
         }
         public class CRUD
         {
@@ -130,6 +134,10 @@
             public static string EntityUpdated(string entityName, bool femine = false)
             {
                 return entityName + " editad" + (femine ? "a" : "o") + " correctamente.";
+            }
+            public static string EntitiesUpdated(string entitiesName, bool femine = false)
+            {
+                return entitiesName + " editad" + (femine ? "as" : "os") + " correctamente.";
             }
             public static string EntityDeleted(string entityName, bool femine = false)
             {

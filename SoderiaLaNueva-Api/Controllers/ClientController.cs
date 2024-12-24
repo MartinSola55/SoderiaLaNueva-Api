@@ -39,5 +39,25 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         #endregion
+
+        #region Update methods
+        [HttpPost]
+        public async Task<GenericResponse<UpdateClientDataResponse>> UpdateClientData([FromBody] UpdateClientDataRequest rq)
+        {
+            return await _clientService.UpdateClientData(rq);
+        }
+
+        [HttpPost]
+        public async Task<GenericResponse<UpdateClientProductsResponse>> UpdateClientProducts([FromBody] UpdateClientProductsRequest rq)
+        {
+            return await _clientService.UpdateClientProducts(rq);
+        }
+
+        [HttpPost]
+        public async Task<GenericResponse> UpdateClientSubscriptions([FromBody] UpdateClientSubscriptionsRequest rq)
+        {
+            return await _clientService.UpdateClientSubscriptions(rq);
+        }
+        #endregion
     }
 }

@@ -12,9 +12,9 @@ namespace SoderiaLaNueva_Api.Controllers
         private readonly UserService _userService = userService;
 
         [HttpGet]
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        public async Task<GenericResponse<GenericComboResponse>> GetComboRoles()
         {
-            return await _userService.GetFormData();
+            return await _userService.GetComboRoles();
         }
 
         [HttpPost]

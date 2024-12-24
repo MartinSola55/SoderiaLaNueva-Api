@@ -142,7 +142,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.DuplicateEntity("producto y tipo"));
 
             // Save changes
-            await _db.Product.AddAsync(product);
+           _db.Product.Add(product);
             try
             {
                 await _db.Database.BeginTransactionAsync();

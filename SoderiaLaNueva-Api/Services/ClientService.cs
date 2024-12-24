@@ -120,21 +120,21 @@ namespace SoderiaLaNueva_Api.Services
                 Observations = rq.Observations,
                 DeliveryDay = rq.DeliveryDay,
                 HasInvoice = rq.HasInvoice,
-                InvoiceType = rq.InvoiceType,
-                TaxCondition = rq.TaxCondition,
-                CUIT = rq.CUIT
+                InvoiceType = rq.HasInvoice ? rq.InvoiceType: string.Empty,
+                TaxCondition = rq.HasInvoice ? rq.TaxCondition: string.Empty,
+                CUIT = rq.HasInvoice ? rq.CUIT : string.Empty
             };
 
             // Validate request
-            if (!response.Attach(await ValidateFields(client)).Success)
+            if (!response.Attach(await ValidateFields<CreateResponse>(client)).Success)
                 return response;
 
+            // Validate products
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            // Validate type
-            if (!await _db.Product.AnyAsync(x => rq.Products.Select(x => x.ProductId).ToList().Contains(x.Id)))
-                return response.SetError(Messages.Error.EntitiesNotFound("productos"));
+            if (!response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+                return response;
 
             client.Products = rq.Products.Select(x => new ClientProduct()
             {
@@ -142,17 +142,17 @@ namespace SoderiaLaNueva_Api.Services
                 Stock = x.Quantity
             }).ToList();
 
+            // Assign or create route
+            await AssignClientRoute(client);
+
             // Save changes
-            await _db.Client.AddAsync(client);
+            _db.Client.Add(client);
             try
             {
-                await _db.Database.BeginTransactionAsync();
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -203,7 +203,196 @@ namespace SoderiaLaNueva_Api.Services
 
         #endregion
 
+        #region Update methods
+        public async Task<GenericResponse<UpdateClientDataResponse>> UpdateClientData(UpdateClientDataRequest rq)
+        {
+            var response = new GenericResponse<UpdateClientDataResponse>();
+
+            var client = await _db
+                .Client
+                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+
+            if (client is null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
+
+            var prevClient = client.Clone();
+
+            // Update client
+            client.DealerId = rq.DealerId;
+            client.Name = rq.Name;
+            client.Address = rq.Address;
+            client.Phone = rq.Phone;
+            client.Observations = rq.Observations;
+            client.DeliveryDay = rq.DeliveryDay;
+            client.HasInvoice = rq.HasInvoice;
+            client.InvoiceType = rq.HasInvoice ? rq.InvoiceType : string.Empty;
+            client.TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty;
+            client.CUIT = rq.HasInvoice ? rq.CUIT : string.Empty;
+            client.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+
+            // Validate request
+            if (!response.Attach(await ValidateFields<UpdateClientDataResponse>(client)).Success)
+                return response;
+
+            if (prevClient.DealerId != client.DealerId || prevClient.DeliveryDay != client.DeliveryDay)
+            {
+                var cart = await _db
+                    .Cart
+                    .Where(x => x.ClientId == client.Id && x.Route.IsStatic)
+                    .FirstOrDefaultAsync();
+
+                if (cart is not null)
+                    cart.DeletedAt = DateTime.UtcNow.AddHours(-3);
+
+                // Assign or create route
+                await AssignClientRoute(client);
+            }
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.CRUD.EntityUpdated("Cliente");
+            return response;
+        }
+
+        public async Task<GenericResponse<UpdateClientProductsResponse>> UpdateClientProducts(UpdateClientProductsRequest rq)
+        {
+            var response = new GenericResponse<UpdateClientProductsResponse>();
+
+            // Validate products
+            if (rq.Products.Any(x => x.Quantity < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
+
+            if (!response.Attach(await ValidateProducts<UpdateClientProductsResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+                return response;
+
+            var products = await _db
+                .ClientProduct
+                .Where(x => x.ClientId == rq.ClientId)
+                .ToListAsync();
+
+            var nonExistentProducts = products.Where(x => !rq.Products.Select(x => x.ProductId).Contains(x.ProductId)).ToList();
+            var newProducts = rq.Products.Where(x => !products.Select(x => x.ProductId).Contains(x.ProductId)).ToList();
+
+            // Delete non existent products
+            nonExistentProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+
+            // Update existent products
+            foreach (var product in products)
+            {
+                var rqProduct = rq.Products.FirstOrDefault(x => x.ProductId == product.ProductId);
+
+                if (rqProduct is not null)
+                {
+                    product.Stock = rqProduct.Quantity;
+                    product.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+                }
+            }
+
+            // Add new products
+            _db.ClientProduct.AddRange(newProducts.Select(x => new ClientProduct
+            {
+                ClientId = rq.ClientId,
+                ProductId = x.ProductId,
+                Stock = x.Quantity
+            }).ToList());
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.CRUD.EntitiesUpdated("Productos");
+            return response;
+        }
+
+        public async Task<GenericResponse> UpdateClientSubscriptions(UpdateClientSubscriptionsRequest rq)
+        {
+            var response = new GenericResponse();
+
+            var client = await _db
+                .Client
+                .Include(x => x.Subscriptions)
+                .FirstOrDefaultAsync(x => x.Id == rq.ClientId);
+
+            if (client is null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
+
+            if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+                return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
+
+            var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
+            var newSubscriptions = rq.SubscriptionIds.Where(x => !client.Subscriptions.Select(x => x.SubscriptionId).Contains(x)).ToList();
+
+            // Delete non existent subscriptions
+            deletedSubscriptions.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+
+            // Add new subscriptions
+            _db.ClientSubscription.AddRange(newSubscriptions.Select(x => new ClientSubscription
+            {
+                ClientId = rq.ClientId,
+                SubscriptionId = x
+            }).ToList());
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.CRUD.EntitiesUpdated("Abonos");
+            return response;
+        }
+        #endregion
+
         #region Private
+        private async Task AssignClientRoute(Client client)
+        {
+            if (client.DealerId is not null && client.DeliveryDay.HasValue)
+            {
+                var route = await _db
+                    .Route
+                    .FirstOrDefaultAsync(x => x.IsStatic && x.DealerId == client.DealerId && x.DeliveryDay == client.DeliveryDay);
+
+                var newCart = new Cart
+                {
+                    ClientId = client.Id,
+                    Status = CartStatuses.Pending
+                };
+
+                if (route is not null)
+                {
+                    route.Carts.Add(newCart);
+                }
+                else
+                {
+                    _db.Route.Add(new()
+                    {
+                        DealerId = client.DealerId,
+                        DeliveryDay = client.DeliveryDay.Value,
+                        IsStatic = true,
+                        Carts = [newCart]
+                    });
+                }
+            }
+        }
+
         private async Task<List<GetOneResponse.CartsTransfersHistoryItem>> GetCartsTransfersHistory(int clientId)
         {
             var cartsTransfersHistory = new List<GetOneResponse.CartsTransfersHistoryItem>();
@@ -362,9 +551,9 @@ namespace SoderiaLaNueva_Api.Services
 
         #region Validations
 
-        private async Task<GenericResponse<CreateResponse>> ValidateFields(Client entity)
+        private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
         {
-            var response = new GenericResponse<CreateResponse>();
+            var response = new GenericResponse<T>();
 
             if (string.IsNullOrEmpty(entity.Name) || string.IsNullOrEmpty(entity.Address) || string.IsNullOrEmpty(entity.Phone))
                 return response.SetError(Messages.Error.FieldsRequired());
@@ -373,11 +562,34 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.FieldsRequired());
 
             // Check duplicate client. Same CUIT or same name and address
-            if (await _db.Client.AnyAsync(x => !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
+            if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
             || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.ToLower() == entity.Address.ToLower()))))
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
             }
+
+            if (!string.IsNullOrEmpty(entity.DealerId) && !await _db.User.AnyAsync(x => x.Id == entity.DealerId))
+                return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
+
+            return response;
+        }
+
+        private async Task<GenericResponse<T>> ValidateProducts<T>(List<int> productIds)
+        {
+            var response = new GenericResponse<T>();
+
+            if (!await _db.Product.AnyAsync(x => productIds.Contains(x.Id)))
+                return response.SetError(Messages.Error.EntitiesNotFound("productos"));
+
+            // Check duplicate types
+            var productTypes = await _db
+                .Product
+                .Where(x => productIds.Contains(x.Id))
+                .Select(x => x.TypeId)
+                .ToListAsync();
+
+            if (productTypes.Count != productTypes.Distinct().Count())
+                return response.SetError(Messages.Error.DuplicateProductType());
 
             return response;
         }

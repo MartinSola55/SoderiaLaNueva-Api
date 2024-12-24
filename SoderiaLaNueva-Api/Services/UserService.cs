@@ -18,17 +18,17 @@ namespace SoderiaLaNueva_Api.Services
         private readonly AuthService _authService = authService;
 
         #region Methods
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        public async Task<GenericResponse<GenericComboResponse>> GetComboRoles()
         {
-            var response = new GenericResponse<GetFormDataResponse>
+            var response = new GenericResponse<GenericComboResponse>
             {
-                Data = new GetFormDataResponse
+                Data = new GenericComboResponse
                 {
-                    Roles = await _db.Roles
-                    .Select(x => new GetFormDataResponse.Item
+                    Items = await _db.Roles
+                    .Select(x => new GenericComboResponse.Item
                     {
                         Id = x.Id,
-                        Name = x.Name
+                        Description = x.Name
                     })
                     .ToListAsync()
                 }
