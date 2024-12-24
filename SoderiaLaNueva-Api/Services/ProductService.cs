@@ -121,7 +121,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<CreateResponse>();
 
-            // Create product and assign role
+            // Create product
             Product product = new()
             {
                 Name = rq.Name,

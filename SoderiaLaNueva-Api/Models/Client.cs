@@ -10,13 +10,13 @@ namespace SoderiaLaNueva_Api.Models
         public string Name { get; set; } = null!;
         public string Address { get; set; } = null!;
         public string Phone { get; set; } = null!;
-        public string? Observations { get; set; } = null!;
+        public string? Observations { get; set; }
         public decimal Debt { get; set; } = 0;
-        public int? DeliveryDay { get; set; } = null!;
+        public int? DeliveryDay { get; set; }
         public bool HasInvoice { get; set; } = false;
         public string? InvoiceType { get; set; }
-        public string? TaxCondition { get; set; } = null!;
-        public string? CUIT { get; set; } = null!;
+        public string? TaxCondition { get; set; }
+        public string? CUIT { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
