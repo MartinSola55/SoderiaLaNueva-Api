@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Helpers;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
@@ -13,25 +14,46 @@ namespace SoderiaLaNueva_Api.Services
         private readonly APIContext _db = context;
         private readonly AuthService _authService = authService;
 
-        #region Methods
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        #region Combos
+        public async Task<GenericResponse<GenericComboResponse>> GetComboProductTypes()
         {
-            var response = new GenericResponse<GetFormDataResponse>
+            var response = new GenericResponse<GenericComboResponse>
             {
-                Data = new GetFormDataResponse
+                Data = new GenericComboResponse
                 {
-                    ProductTypes = await _db.ProductType
-                    .Select(x => new GetFormDataResponse.Item
+                    Items = await _db.ProductType
+                    .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
-                        Type = x.Name
+                        Id = x.Id.ToString(),
+                        Description = x.Name
                     })
+                    .OrderBy(x => x.Description)
                     .ToListAsync()
                 }
             };
             return response;
         }
 
+        public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = await _db.Product
+                    .Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x.Id.ToString(),
+                        Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
+                    })
+                    .OrderBy(x => x.Description)
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db
@@ -99,7 +121,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<CreateResponse>();
 
-            // Create product and assign role
+            // Create product
             Product product = new()
             {
                 Name = rq.Name,
@@ -120,7 +142,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.DuplicateEntity("producto y tipo"));
 
             // Save changes
-            await _db.Product.AddAsync(product);
+           _db.Product.Add(product);
             try
             {
                 await _db.Database.BeginTransactionAsync();
