@@ -65,5 +65,13 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _subscriptionService.RenewByRoute(rq);
         }
         #endregion
+
+        #region Search
+        [HttpGet]
+        public async Task<GenericResponse<GetClientListResponse>> GetClientList([FromQuery] GetClientListRequest rq)
+        {
+            return await _subscriptionService.GetClientList(rq);
+        }
+        #endregion
     }
 }
