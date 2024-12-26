@@ -1,6 +1,6 @@
-using Azure;
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Helpers;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
@@ -13,25 +13,28 @@ namespace SoderiaLaNueva_Api.Services
     {
         private readonly APIContext _db = context;
 
-        #region Methods
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        #region Combos
+        public async Task<GenericResponse<GenericComboResponse>> GetComboSubscriptions()
         {
-            var response = new GenericResponse<GetFormDataResponse>
+            var response = new GenericResponse<GenericComboResponse>
             {
-                Data = new GetFormDataResponse
+                Data = new GenericComboResponse
                 {
-                    Products = await _db
-                    .ProductType
-                    .Select(x => new GetFormDataResponse.Item
+                    Items = await _db.Subscription
+                    .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
-                        Name = x.Name
+                        Id = x.Id.ToString(),
+                        Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
                     })
+                    .OrderBy(x => x.Description)
                     .ToListAsync()
                 }
             };
             return response;
         }
+        #endregion
+
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var response = new GenericResponse<GetAllResponse>();
@@ -42,9 +45,7 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.ProductType)
                 .AsQueryable();
 
-            if (rq.DateFrom.HasValue && rq.DateTo.HasValue)
-                query = FilterQuery(query, rq);
-
+            query = FilterQuery(query, rq);
             query = OrderQuery(query, rq.ColumnSort, rq.SortDirection);
 
             response.Data = new GetAllResponse
@@ -56,7 +57,7 @@ namespace SoderiaLaNueva_Api.Services
                     Id = x.Id,
                     Name = x.Name,
                     Price = x.Price,
-                    SubscriptionProductItems = x.Products.Select(x => new GetAllResponse.Item.SubscriptionProductItem
+                    SubscriptionProductItems = x.Products.Select(x => new GetAllResponse.SubscriptionProductItem
                     {
                         Id = x.Id,
                         Name = x.ProductType.Name,
@@ -121,7 +122,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 Name = rq.Name,
                 Price = rq.Price,
-                Products = rq.SubscriptionProducts.Where(x => x.Quantity > 0).Select(x => new SubscriptionProduct
+                Products = rq.SubscriptionProducts.Select(x => new SubscriptionProduct
                 {
                     ProductTypeId = x.ProductTypeId,
                     Quantity = x.Quantity,
@@ -129,17 +130,10 @@ namespace SoderiaLaNueva_Api.Services
             };
 
             // Validate request
-            if (!ValidateFields(subscription))
-                return response.SetError(Messages.Error.FieldsRequired());
-
-            // Validate quantities
-            var error = await ValidateQuantities(subscription);
-
-            if (error != "")
-                return response.SetError(error);
+            if (!response.Attach(await ValidateFields<CreateResponse>(subscription)).Success)
+                return response;
 
             _db.Subscription.Add(subscription);
-
             try
             {
                 await _db.SaveChangesAsync();
@@ -174,7 +168,7 @@ namespace SoderiaLaNueva_Api.Services
 
             subscription.Name = rq.Name;
             subscription.Price = rq.Price;
-            subscription.UpdatedAt = DateTime.UtcNow;
+            subscription.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
             foreach (var rqProduct in rq.SubscriptionProducts)
             {
@@ -199,15 +193,9 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             // Validate request
-            if (!ValidateFields(subscription))
-                return response.SetError(Messages.Error.FieldsRequired());
+            if (!response.Attach(await ValidateFields<UpdateResponse>(subscription)).Success)
+                return response;
 
-            // Validate quantities
-            var error = await ValidateQuantities(subscription);
-
-            if (error != "")
-                return response.SetError(error);
-            
             // Save changes
             try
             {
@@ -235,13 +223,18 @@ namespace SoderiaLaNueva_Api.Services
 
             var subscription = await _db
                 .Subscription
+                .Include(x => x.Products)
+                .Include(x => x.ClientSubscriptions)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
 
-            subscription.DeletedAt = DateTime.UtcNow;
+            subscription.DeletedAt = DateTime.UtcNow.AddHours(-3);
+            subscription.ClientSubscriptions.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+            subscription.Products.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -256,45 +249,32 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
-
-        #region 
-        private static bool ValidateFields(Subscription entity)
+        #region Validations
+        private async Task<GenericResponse<T>> ValidateFields<T>(Subscription entity)
         {
-            if (string.IsNullOrEmpty(entity.Name) || entity.Price < 0 || entity.Products.Count == 0)
-                return false;
+            var response = new GenericResponse<T>();
 
-            return true;
-        }
+            if (string.IsNullOrEmpty(entity.Name) || entity.Products.Count == 0)
+                return response.SetError(Messages.Error.FieldsRequired());
 
-        private async Task<string> ValidateQuantities(Subscription entity)
-        {
+            if (entity.Price < 0)
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("precio"));
+
             if (entity.Products.Any(x => x.Quantity < 0))
-                return Messages.Error.FieldGraterOrEqualThanZero("cantidad");
+                return response.SetError(Messages.Error.FieldGraterThanZero("cantidad"));
 
-            var productTypes = await _db
-                .ProductType
-                .Where(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id))
-                .Select(x => x.Id)
-                .ToListAsync();
+            if (!await _db.ProductType.AnyAsync(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id)))
+                return response.SetError(Messages.Error.EntitiesNotFound("tipos de producto"));
 
-            if (productTypes.Count != entity.Products.Count)
-                return Messages.Error.EntityNotFound("Tipo de producto");
-
-            return "";
+            return response;
         }
-
         #endregion
 
         #region Helpers
         private static IQueryable<Subscription> FilterQuery(IQueryable<Subscription> query, GetAllRequest rq)
         {
-            if (rq.DateFrom <= rq.DateTo)
-            {
-                var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom.Value, DateTimeKind.Utc).Date;
-                var dateToUTC = DateTime.SpecifyKind(rq.DateTo.Value, DateTimeKind.Utc).Date;
-
-                query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
-            }
+            if (!string.IsNullOrEmpty(rq.Name))
+                query = query.Where(x => x.Name.Contains(rq.Name));
 
             return query;
         }
