@@ -18,6 +18,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Client
                 .Include(x => x.Dealer)
+                .Where(x => x.IsActive)
                 .AsQueryable();
 
             query = FilterQuery(query, rq);
@@ -607,6 +608,10 @@ namespace SoderiaLaNueva_Api.Services
 
             if (rq.Id != null)
                 query = query.Where(x => x.Id == rq.Id);
+
+            // Filter clients that are not assigned to a route
+            if (rq.Unassigned)
+                query = query.Where(x => string.IsNullOrEmpty(x.DealerId) && x.DeliveryDay == null);
 
             return query;
         }
