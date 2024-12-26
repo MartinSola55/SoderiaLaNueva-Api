@@ -1,4 +1,4 @@
-namespace SoderiaLaNueva_Api.Models.DAO.Expense
+namespace SoderiaLaNueva_Api.Models.DAO.Transfer
 {
     public class GetAllRequest : GenericGetAllRequest
     {
@@ -8,15 +8,16 @@ namespace SoderiaLaNueva_Api.Models.DAO.Expense
 
     public class GetAllResponse : GenericGetAllResponse
     {
-        public List<Item> Expenses { get; set; } = [];
+        public List<Item> Transfers { get; set; } = [];
 
         public class Item
         {
             public int Id { get; set; }
-            public string Description { get; set; } = null!;
-            public string DealerId { get; set; } = null!;
+            public string ClientName { get; set; } = null!;
+            public string? DealerName { get; set; } = null!;
             public decimal Amount { get; set; }
             public string CreatedAt { get; set; } = null!;
+            public string DeliveredDate { get; set; } = null!;
         }
     }
 }

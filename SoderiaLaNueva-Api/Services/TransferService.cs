@@ -3,24 +3,24 @@ using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
-using SoderiaLaNueva_Api.Models.DAO.Expense;
+using SoderiaLaNueva_Api.Models.DAO.Transfer;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class ExpenseService(APIContext context, TokenService tokenService)
+    public class TransferService(APIContext context)
     {
         private readonly APIContext _db = context;
-        private readonly Token _token = tokenService.GetToken();
 
-        #region Methods
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var response = new GenericResponse<GetAllResponse>();
 
             var query = _db
-                .Expense
-                .Include(x => x.Dealer)
+                .Transfer
+                .Include(x => x.Client)
+                    .ThenInclude(x => x.Dealer)
                 .AsQueryable();
 
             query = FilterQuery(query, rq);
@@ -29,12 +29,12 @@ namespace SoderiaLaNueva_Api.Services
             response.Data = new GetAllResponse
             {
                 TotalCount = await query.CountAsync(),
-                Expenses = await query
+                Transfers = await query
                 .Select(x => new GetAllResponse.Item
                 {
                     Id = x.Id,
-                    Description = x.Description,
-                    DealerId = x.DealerId,
+                    ClientName = x.Client.Name,
+                    DealerName = x.Client.Dealer.FullName,
                     Amount = x.Amount,
                     CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 })
@@ -50,20 +50,27 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<CreateResponse>();
 
-            if (rq.DealerId == null)
-                return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
             if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
 
-            var expense = new Expense
+            var client = await _db
+                .Client
+                .Include(x => x.Dealer)
+                .FirstOrDefaultAsync(x => x.Id == rq.ClientId);
+
+            if (client == null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
+
+            var transfer = new Transfer
             {
-                DealerId = rq.DealerId,
-                Description = rq.Description,
-                Amount = rq.Amount
+                ClientId = rq.ClientId,
+                Amount = rq.Amount,
             };
+            client.Debt -= transfer.Amount;
 
-            _db.Expense.Add(expense);
+            _db.Transfer.Add(transfer);
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -73,13 +80,15 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityCreated("Gasto");
+            response.Message = Messages.CRUD.EntityCreated("Transferencia");
             response.Data = new CreateResponse
             {
-                Id = expense.Id,
-                DealerId = expense.DealerId,
-                Description = expense.Description,
-                Amount = expense.Amount
+                Id = transfer.Id,
+                ClientName = client.Name,
+                Address = client.Address,
+                Phone = client.Phone,
+                Amount = transfer.Amount,
+                DealerName = client.Dealer.FullName,
             };
             return response;
         }
@@ -88,29 +97,25 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<UpdateResponse>();
 
-            var expense = await _db
-                .Expense
-                .Include(x => x.Dealer)
+            var transfer = await _db
+                .Transfer
+                .Include(x => x.Client)
+                    .ThenInclude(x => x.Dealer)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
-            if (expense == null)
-                return response.SetError(Messages.Error.EntityNotFound("Gasto"));
+            if (transfer == null)
+                return response.SetError(Messages.Error.EntityNotFound("Transferencia"));
             else if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
 
+            // Update client debt
+            transfer.Client.Debt += transfer.Amount - rq.Amount;
 
-            if (expense.DealerId != rq.DealerId)
-            {
-                if (!await _db.User.AnyAsync(x => x.Id == rq.DealerId))
-                    return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
+            // Update transfer
+            transfer.Amount = rq.Amount;
+            transfer.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
-                expense.DealerId = rq.DealerId;
-            }
-
-            expense.Amount = rq.Amount;
-            expense.Description = rq.Description;
-            expense.UpdatedAt = DateTime.UtcNow;
-
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -122,12 +127,12 @@ namespace SoderiaLaNueva_Api.Services
 
             response.Data = new()
             {
-                Id = expense.Id,
-                DealerId = expense.DealerId,
-                Description = expense.Description,
-                Amount = expense.Amount
+                Id = transfer.Id,
+                ClientName = transfer.Client.Name,
+                DealerName = transfer.Client.Dealer.FullName,
+                Amount = transfer.Amount
             };
-            response.Message = Messages.CRUD.EntityUpdated("Gasto");
+            response.Message = Messages.CRUD.EntityUpdated("Transferencia");
             return response;
         }
 
@@ -135,15 +140,20 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse();
 
-            var expense = await _db
-                .Expense
+            var transfer = await _db
+                .Transfer
+                .Include(x => x.Client)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
-            if (expense == null)
-                return response.SetError(Messages.Error.EntityNotFound("Gasto"));
+            if (transfer == null)
+                return response.SetError(Messages.Error.EntityNotFound("Transferencia"));
 
-            expense.DeletedAt = DateTime.UtcNow;
+            // Update client debt
+            transfer.Client.Debt += transfer.Amount;
+            // Delete transfer
+            transfer.DeletedAt = DateTime.UtcNow.AddHours(-3);
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -153,13 +163,13 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityDeleted("Gasto");
+            response.Message = Messages.CRUD.EntityDeleted("Transferencia");
             return response;
         }
         #endregion
 
         #region Helpers
-        private static IQueryable<Expense> FilterQuery(IQueryable<Expense> query, GetAllRequest rq)
+        private static IQueryable<Transfer> FilterQuery(IQueryable<Transfer> query, GetAllRequest rq)
         {
             if (rq.DateFrom <= rq.DateTo)
             {
@@ -172,10 +182,12 @@ namespace SoderiaLaNueva_Api.Services
             return query;
         }
 
-        private static IQueryable<Expense> OrderQuery(IQueryable<Expense> query, string column, string direction)
+        private static IQueryable<Transfer> OrderQuery(IQueryable<Transfer> query, string column, string direction)
         {
             return column switch
             {
+                "amount" => direction == "asc" ? query.OrderBy(x => x.Amount) : query.OrderByDescending(x => x.Amount),
+                "clientName" => direction == "asc" ? query.OrderBy(x => x.Client.Name) : query.OrderByDescending(x => x.Client.Name),
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };

@@ -6,7 +6,6 @@
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
     }
-
     public class GetAllResponse : GenericGetAllResponse
     {
         public List<Item> Users { get; set; } = [];

@@ -13,6 +13,10 @@
             services.AddScoped<CartService>();
             services.AddScoped<ProductService>();
             services.AddScoped<DealerService>();
+            services.AddScoped<ExpenseService>();
+            services.AddScoped<TransferService>();
+            services.AddScoped<SubscriptionService>();
+            services.AddScoped<ClientService>();
 
             // Stats
             services.AddScoped<StatsService>();

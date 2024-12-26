@@ -7,11 +7,11 @@
         public string ColumnSort { get; set; } = "createdAt";
         public string SortDirection { get; set; } = "desc";
 
+
     }
 
     public class GenericGetAllResponse
     {
         public int TotalCount { get; set; } = 0;
-
     }
 }
