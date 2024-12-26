@@ -174,6 +174,10 @@
             {
                 return "La bajada ha sido eliminada correctamente.";
             }
+            public static string SubscriptionRenewed()
+            {
+                return "Los abonos han sido renovadas correctamente.";
+            }
         }
     }
 }

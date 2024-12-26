@@ -249,6 +249,159 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
+        #region Renew
+        public async Task<GenericResponse> RenewAll()
+        {
+            var response = new GenericResponse();
+            var today = DateTime.UtcNow.AddHours(-3);
+
+            // Get all renewed subscriptions
+            var renewedSubs = await _db
+                .SubscriptionRenewal
+                .Where(x => x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year)
+                .Select(x => new { x.ClientId, x.SubscriptionId })
+                .ToListAsync();
+
+            // Get all subscriptions to renew
+            var subscriptionsToRenew = await _db
+                .ClientSubscription
+                .Include(x => x.Client)
+                .Include(x => x.Subscription)
+                    .ThenInclude(x => x.Products)
+                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Client,
+                    x.SubscriptionId,
+                    x.Subscription.Price,
+                    Products = x.Subscription.Products.Select(p => new
+                    {
+                        p.ProductTypeId,
+                        p.Quantity,
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            // Renew subscriptions and products
+            foreach (var clientSub in subscriptionsToRenew)
+            {
+                var newRenewal = new SubscriptionRenewal
+                {
+                    ClientId = clientSub.Client.Id,
+                    SubscriptionId = clientSub.SubscriptionId,
+                    SettedPrice = clientSub.Price,
+                    RenewalProducts = clientSub.Products.Select(x => new SubscriptionRenewalProduct
+                    {
+                        ProductTypeId = x.ProductTypeId,
+                        AvailableQuantity = x.Quantity,
+                    }).ToList()
+                };
+
+                // Update client debt
+                clientSub.Client.Debt += clientSub.Price;
+
+                _db.SubscriptionRenewal.Add(newRenewal);
+            }
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.SubscriptionRenewed();
+
+            return response;
+        }
+
+        public async Task<GenericResponse> RenewByRoute(RenewByRouteRequest rq)
+        {
+            var response = new GenericResponse();
+            var today = DateTime.UtcNow.AddHours(-3);
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && x.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Planilla"));
+
+            // Get all clients from the route
+            var clients = await _db
+                .Route
+                .Where(x => x.Id == rq.RouteId)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client.Id)
+                .ToListAsync();
+
+            // Get all renewed subscriptions
+            var renewedSubs = await _db
+                .SubscriptionRenewal
+                .Where(x => x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year)
+                .Where(x => clients.Contains(x.ClientId))
+                .Select(x => new { x.ClientId, x.SubscriptionId })
+                .ToListAsync();
+
+            // Get all subscriptions to renew
+            var subscriptionsToRenew = await _db
+                .ClientSubscription
+                .Include(x => x.Client)
+                .Include(x => x.Subscription)
+                    .ThenInclude(x => x.Products)
+                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Where(x => clients.Contains(x.ClientId))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Client,
+                    x.SubscriptionId,
+                    x.Subscription.Price,
+                    Products = x.Subscription.Products.Select(p => new
+                    {
+                        p.ProductTypeId,
+                        p.Quantity,
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            // Renew subscriptions and products
+            foreach (var clientSub in subscriptionsToRenew)
+            {
+                var newRenewal = new SubscriptionRenewal
+                {
+                    ClientId = clientSub.Client.Id,
+                    SubscriptionId = clientSub.SubscriptionId,
+                    SettedPrice = clientSub.Price,
+                    RenewalProducts = clientSub.Products.Select(x => new SubscriptionRenewalProduct
+                    {
+                        ProductTypeId = x.ProductTypeId,
+                        AvailableQuantity = x.Quantity,
+                    }).ToList()
+                };
+
+                // Update client debt
+                clientSub.Client.Debt += clientSub.Price;
+
+                _db.SubscriptionRenewal.Add(newRenewal);
+            }
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.SubscriptionRenewed();
+
+            return response;
+        }
+        #endregion
+
         #region Validations
         private async Task<GenericResponse<T>> ValidateFields<T>(Subscription entity)
         {
