@@ -1,6 +1,6 @@
 ﻿namespace SoderiaLaNueva_Api.Models.DAO.Route
 {
-    public class GetAllStaticRequest : GenericGetAllRequest
+    public class GetAllStaticRequest
     {
         public int DeliveryDay { get; set; }
     }

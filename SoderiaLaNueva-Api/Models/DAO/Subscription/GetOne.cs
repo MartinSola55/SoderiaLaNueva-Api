@@ -14,8 +14,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Subscription
         public List<SubscriptionProductItem> SubscriptionProducts { get; set; } = [];
         public class SubscriptionProductItem
         {
-            public int Id { get; set; }
-            public string Name { get; set; } = null!;
+            public string Id { get; set; } = null!;
             public int Quantity { get; set; }
         }
     }

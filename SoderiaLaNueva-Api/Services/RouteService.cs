@@ -14,6 +14,37 @@ namespace SoderiaLaNueva_Api.Services
         private readonly AuthService _auth = authService;
         private readonly Token _token = tokenService.GetToken();
 
+
+        #region Combos
+        public async Task<GenericResponse<GetClientsListResponse>> GetClientsList(GetClientsListRequest rq)
+        {
+            var query = _db
+            .Client
+            .Include(x => x.Carts)
+                .ThenInclude(x => x.Route)
+            .Where(x => !x.Carts.Select(x => x.RouteId).Contains(rq.Id))
+            .AsQueryable();
+
+            var response = new GenericResponse<GetClientsListResponse>
+            {
+                Data = new GetClientsListResponse
+                {
+                    TotalCount = await query.CountAsync(),
+                    Items = await query.Select(x => new GetClientsListResponse.ClientItem
+                    {
+                        ClientId = x.Id.ToString(),
+                        Name = x.Name,
+                        Address = x.Address
+                    })
+                    .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
+                    .Take(Pagination.DefaultPageSize)
+                    .ToListAsync()
+                }
+            };
+            return response;
+        }
+        #endregion
+
         #region Static Methods
         public async Task<GenericResponse<GetAllStaticResponse>> GetAllStaticRoutes(GetAllStaticRequest rq)
         {
@@ -59,6 +90,7 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.Carts)
                     .ThenInclude(x => x.Products)
                     .ThenInclude(x => x.Type)
+                .Where(x => x.Id == rq.Id)
                 .AsQueryable();
 
             response.Data = await query.Select(x => new GetStaticRouteResponse
@@ -88,6 +120,40 @@ namespace SoderiaLaNueva_Api.Services
                         }).ToList()
                 }).ToList()
             }).FirstOrDefaultAsync();
+            return response;
+        }
+
+        public async Task<GenericResponse<GetStaticRouteClientsResponse>> GetStaticRouteClients(GetStaticRouteClientsRequest rq)
+        {
+            var response = new GenericResponse<GetStaticRouteClientsResponse>();
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.Id))
+                return response.SetError(Messages.Error.EntityNotFound("Ruta", true));
+
+            if (!_auth.IsAdmin() && !await _db.Route.AnyAsync(x => x.Id == rq.Id && x.DealerId == _token.UserId))
+                return response.SetError(Messages.Error.Unauthorized());
+
+            var query = _db
+                .Route
+                .Include(x => x.Dealer)
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                .Where(x => x.Id == rq.Id)
+                .AsQueryable();
+
+            response.Data = await query.Select(x => new GetStaticRouteClientsResponse
+            {
+                Id = x.Id,
+                Dealer = x.Dealer.FullName,
+                DeliveryDay = x.DeliveryDay,
+                Clients = x.Carts.Select(y => new GetStaticRouteClientsResponse.ClientItem
+                {
+                    ClientId = y.ClientId,
+                    Name = y.Client.Name,
+                    Address = y.Client.Address,
+                }).ToList()
+            }).FirstOrDefaultAsync();
+
             return response;
         }
 

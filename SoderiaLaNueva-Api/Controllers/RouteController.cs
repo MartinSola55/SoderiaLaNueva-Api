@@ -24,6 +24,12 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _routeService.GetStaticRoute(rq);
         }
 
+        [HttpGet]
+        public async Task<GenericResponse<GetStaticRouteClientsResponse>> GetStaticRouteClients([FromQuery] GetStaticRouteClientsRequest rq)
+        {
+            return await _routeService.GetStaticRouteClients(rq);
+        }
+
         [HttpPost]
         [Authorize(Policy = Policies.Admin)]
         public async Task<GenericResponse<CreateStaticResponse>> CreateStaticRoute([FromBody] CreateStaticRequest rq)
@@ -36,6 +42,13 @@ namespace SoderiaLaNueva_Api.Controllers
         public async Task<GenericResponse> DeleteStaticRoute([FromBody] DeleteStaticRequest rq)
         {
             return await _routeService.DeleteStaticRoute(rq);
+        }
+
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse<GetClientsListResponse>> GetClientsList([FromBody] GetClientsListRequest rq)
+        {
+            return await _routeService.GetClientsList(rq);
         }
 
         #endregion

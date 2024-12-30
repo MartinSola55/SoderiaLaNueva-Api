@@ -18,7 +18,7 @@
             }
             public static string EntitiesNotFound(string entitiesName, bool femine = false)
             {
-                return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s" + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
+                return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s " + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
             }
             public static string SaveEntity(string entityName)
             {

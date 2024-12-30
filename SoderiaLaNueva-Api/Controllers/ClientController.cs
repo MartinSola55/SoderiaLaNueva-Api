@@ -12,6 +12,12 @@ namespace SoderiaLaNueva_Api.Controllers
         private readonly ClientService _clientService = clientService;
 
         #region CRUD
+        [HttpGet]
+        public GenericResponse<GetFormDataResponse> GetFormData()
+        {
+            return _clientService.GetFormData();
+        }
+
         [HttpPost]
         public async Task<GenericResponse<GetAllResponse>> GetAll([FromBody] GetAllRequest rq)
         {
