@@ -12,7 +12,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Transfer
         public string ClientName { get; set; } = null!;
         public string Address { get; set; } = null!;
         public string  Phone { get; set; } = null!;
-        public decimal Debt { get; set; }
+        public decimal Amount { get; set; }
         public string? DealerName { get; set; }
     }
 }

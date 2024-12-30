@@ -256,6 +256,35 @@ namespace SoderiaLaNueva_Api.Services
 
         #endregion
 
+        #region Search
+        public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
+        {
+            var query = _db
+                .Client
+                .Include(x => x.Products)
+                .Include(x => x.Dealer)
+                .Where(x => x.Products.Any(p => p.Id == rq.ProductId))
+                .OrderBy(x => x.Name)
+                .AsQueryable();
+
+            return new GenericResponse<GetClientListResponse>
+            {
+                Data = new GetClientListResponse
+                {
+                    Clients = await query
+                    .Select(x => new GetClientListResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Address = x.Address,
+                        DealerName = x.Dealer.FullName,
+                        DeliveryDay = x.DeliveryDay
+                    })
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
         #region Validations
         private static bool ValidateFields(Product entity)
         {

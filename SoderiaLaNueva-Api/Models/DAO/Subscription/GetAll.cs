@@ -2,8 +2,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Subscription
 {
     public class GetAllRequest : GenericGetAllRequest
     {
-        public DateTime? DateFrom { get; set; }
-        public DateTime? DateTo { get; set; }
+        public string? Name { get; set; }
     }
 
     public class GetAllResponse : GenericGetAllResponse
@@ -16,13 +15,13 @@ namespace SoderiaLaNueva_Api.Models.DAO.Subscription
             public string Name { get; set; } = null!;
             public decimal Price { get; set; }
             public List<SubscriptionProductItem> SubscriptionProductItems { get; set; } = [];
-            public class SubscriptionProductItem
-            {
-                public int Id { get; set; }
-                public string Name { get; set; } = null!;
-                public int Quantity{ get; set; }
+        }
 
-            }
+        public class SubscriptionProductItem
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = null!;
+            public int Quantity { get; set; }
         }
     }
 }

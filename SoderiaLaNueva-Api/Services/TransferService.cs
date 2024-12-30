@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
@@ -9,12 +8,11 @@ using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class TransferService(APIContext context, TokenService tokenService)
+    public class TransferService(APIContext context)
     {
         private readonly APIContext _db = context;
-        private readonly Token _token = tokenService.GetToken();
 
-        #region Methods
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var response = new GenericResponse<GetAllResponse>();
@@ -38,7 +36,6 @@ namespace SoderiaLaNueva_Api.Services
                     ClientName = x.Client.Name,
                     DealerName = x.Client.Dealer.FullName,
                     Amount = x.Amount,
-                    //DeliveredDate = x.DeliveredDate
                     CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 })
                 .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
@@ -56,16 +53,24 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
 
+            var client = await _db
+                .Client
+                .Include(x => x.Dealer)
+                .FirstOrDefaultAsync(x => x.Id == rq.ClientId);
+
+            if (client == null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
+
             var transfer = new Transfer
             {
                 ClientId = rq.ClientId,
                 Amount = rq.Amount,
             };
-
-            var newDebt = transfer.Client.Debt - transfer.Amount;
+            client.Debt -= transfer.Amount;
 
             _db.Transfer.Add(transfer);
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -79,11 +84,11 @@ namespace SoderiaLaNueva_Api.Services
             response.Data = new CreateResponse
             {
                 Id = transfer.Id,
-                ClientName = transfer.Client.Name,
-                Address = transfer.Client.Address,
-                Phone = transfer.Client.Phone,
-                Debt = newDebt,
-                DealerName = transfer.Client.Dealer.FullName,
+                ClientName = client.Name,
+                Address = client.Address,
+                Phone = client.Phone,
+                Amount = transfer.Amount,
+                DealerName = client.Dealer.FullName,
             };
             return response;
         }
@@ -103,9 +108,14 @@ namespace SoderiaLaNueva_Api.Services
             else if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
 
-            transfer.Amount = rq.Amount;
-            transfer.UpdatedAt = DateTime.UtcNow;
+            // Update client debt
+            transfer.Client.Debt += transfer.Amount - rq.Amount;
 
+            // Update transfer
+            transfer.Amount = rq.Amount;
+            transfer.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -132,13 +142,18 @@ namespace SoderiaLaNueva_Api.Services
 
             var transfer = await _db
                 .Transfer
+                .Include(x => x.Client)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (transfer == null)
                 return response.SetError(Messages.Error.EntityNotFound("Transferencia"));
 
-            transfer.DeletedAt = DateTime.UtcNow;
+            // Update client debt
+            transfer.Client.Debt += transfer.Amount;
+            // Delete transfer
+            transfer.DeletedAt = DateTime.UtcNow.AddHours(-3);
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -171,6 +186,8 @@ namespace SoderiaLaNueva_Api.Services
         {
             return column switch
             {
+                "amount" => direction == "asc" ? query.OrderBy(x => x.Amount) : query.OrderByDescending(x => x.Amount),
+                "clientName" => direction == "asc" ? query.OrderBy(x => x.Client.Name) : query.OrderByDescending(x => x.Client.Name),
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };

@@ -5,6 +5,7 @@
         public string? Name { get; set; } = null!;
         public int? Id { get; set; }
         public List<string>? DealerIds { get; set; } = null!;
+        public bool Unassigned { get; set; } = false;
     }
 
     public class GetAllResponse : GenericGetAllResponse

@@ -1,6 +1,6 @@
-using Azure;
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Helpers;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
@@ -48,9 +48,7 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.ProductType)
                 .AsQueryable();
 
-            if (rq.DateFrom.HasValue && rq.DateTo.HasValue)
-                query = FilterQuery(query, rq);
-
+            query = FilterQuery(query, rq);
             query = OrderQuery(query, rq.ColumnSort, rq.SortDirection);
 
             response.Data = new GetAllResponse
@@ -62,7 +60,7 @@ namespace SoderiaLaNueva_Api.Services
                     Id = x.Id,
                     Name = x.Name,
                     Price = x.Price,
-                    SubscriptionProductItems = x.Products.Select(x => new GetAllResponse.Item.SubscriptionProductItem
+                    SubscriptionProductItems = x.Products.Select(x => new GetAllResponse.SubscriptionProductItem
                     {
                         Id = x.Id,
                         Name = x.ProductType.Name,
@@ -114,7 +112,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 Name = rq.Name,
                 Price = rq.Price,
-                Products = rq.SubscriptionProducts.Where(x => x.Quantity > 0).Select(x => new SubscriptionProduct
+                Products = rq.SubscriptionProducts.Select(x => new SubscriptionProduct
                 {
                     ProductTypeId = x.ProductTypeId,
                     Quantity = x.Quantity,
@@ -122,17 +120,10 @@ namespace SoderiaLaNueva_Api.Services
             };
 
             // Validate request
-            if (!ValidateFields(subscription))
-                return response.SetError(Messages.Error.FieldsRequired());
-
-            // Validate quantities
-            var error = await ValidateQuantities(subscription);
-
-            if (error != "")
-                return response.SetError(error);
+            if (!response.Attach(await ValidateFields<CreateResponse>(subscription)).Success)
+                return response;
 
             _db.Subscription.Add(subscription);
-
             try
             {
                 await _db.SaveChangesAsync();
@@ -167,7 +158,7 @@ namespace SoderiaLaNueva_Api.Services
 
             subscription.Name = rq.Name;
             subscription.Price = rq.Price;
-            subscription.UpdatedAt = DateTime.UtcNow;
+            subscription.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
             foreach (var rqProduct in rq.SubscriptionProducts)
             {
@@ -192,15 +183,9 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             // Validate request
-            if (!ValidateFields(subscription))
-                return response.SetError(Messages.Error.FieldsRequired());
+            if (!response.Attach(await ValidateFields<UpdateResponse>(subscription)).Success)
+                return response;
 
-            // Validate quantities
-            var error = await ValidateQuantities(subscription);
-
-            if (error != "")
-                return response.SetError(error);
-            
             // Save changes
             try
             {
@@ -228,13 +213,18 @@ namespace SoderiaLaNueva_Api.Services
 
             var subscription = await _db
                 .Subscription
+                .Include(x => x.Products)
+                .Include(x => x.ClientSubscriptions)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
 
-            subscription.DeletedAt = DateTime.UtcNow;
+            subscription.DeletedAt = DateTime.UtcNow.AddHours(-3);
+            subscription.ClientSubscriptions.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+            subscription.Products.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
 
+            // Save changes
             try
             {
                 await _db.SaveChangesAsync();
@@ -249,45 +239,214 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
-
-        #region 
-        private static bool ValidateFields(Subscription entity)
+        #region Renew
+        public async Task<GenericResponse> RenewAll()
         {
-            if (string.IsNullOrEmpty(entity.Name) || entity.Price < 0 || entity.Products.Count == 0)
-                return false;
+            var response = new GenericResponse();
+            var today = DateTime.UtcNow.AddHours(-3);
 
-            return true;
-        }
-
-        private async Task<string> ValidateQuantities(Subscription entity)
-        {
-            if (entity.Products.Any(x => x.Quantity < 0))
-                return Messages.Error.FieldGraterOrEqualThanZero("cantidad");
-
-            var productTypes = await _db
-                .ProductType
-                .Where(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id))
-                .Select(x => x.Id)
+            // Get all renewed subscriptions
+            var renewedSubs = await _db
+                .SubscriptionRenewal
+                .Where(x => x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year)
+                .Select(x => new { x.ClientId, x.SubscriptionId })
                 .ToListAsync();
 
-            if (productTypes.Count != entity.Products.Count)
-                return Messages.Error.EntityNotFound("Tipo de producto");
+            // Get all subscriptions to renew
+            var subscriptionsToRenew = await _db
+                .ClientSubscription
+                .Include(x => x.Client)
+                .Include(x => x.Subscription)
+                    .ThenInclude(x => x.Products)
+                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Client,
+                    x.SubscriptionId,
+                    x.Subscription.Price,
+                    Products = x.Subscription.Products.Select(p => new
+                    {
+                        p.ProductTypeId,
+                        p.Quantity,
+                    }).ToList()
+                })
+                .ToListAsync();
 
-            return "";
+            // Renew subscriptions and products
+            foreach (var clientSub in subscriptionsToRenew)
+            {
+                var newRenewal = new SubscriptionRenewal
+                {
+                    ClientId = clientSub.Client.Id,
+                    SubscriptionId = clientSub.SubscriptionId,
+                    SettedPrice = clientSub.Price,
+                    RenewalProducts = clientSub.Products.Select(x => new SubscriptionRenewalProduct
+                    {
+                        ProductTypeId = x.ProductTypeId,
+                        AvailableQuantity = x.Quantity,
+                    }).ToList()
+                };
+
+                // Update client debt
+                clientSub.Client.Debt += clientSub.Price;
+
+                _db.SubscriptionRenewal.Add(newRenewal);
+            }
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.SubscriptionRenewed();
+
+            return response;
         }
 
+        public async Task<GenericResponse> RenewByRoute(RenewByRouteRequest rq)
+        {
+            var response = new GenericResponse();
+            var today = DateTime.UtcNow.AddHours(-3);
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && x.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Planilla"));
+
+            // Get all clients from the route
+            var clients = await _db
+                .Route
+                .Where(x => x.Id == rq.RouteId)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client.Id)
+                .ToListAsync();
+
+            // Get all renewed subscriptions
+            var renewedSubs = await _db
+                .SubscriptionRenewal
+                .Where(x => x.CreatedAt.Month == today.Month && x.CreatedAt.Year == today.Year)
+                .Where(x => clients.Contains(x.ClientId))
+                .Select(x => new { x.ClientId, x.SubscriptionId })
+                .ToListAsync();
+
+            // Get all subscriptions to renew
+            var subscriptionsToRenew = await _db
+                .ClientSubscription
+                .Include(x => x.Client)
+                .Include(x => x.Subscription)
+                    .ThenInclude(x => x.Products)
+                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Where(x => clients.Contains(x.ClientId))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Client,
+                    x.SubscriptionId,
+                    x.Subscription.Price,
+                    Products = x.Subscription.Products.Select(p => new
+                    {
+                        p.ProductTypeId,
+                        p.Quantity,
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            // Renew subscriptions and products
+            foreach (var clientSub in subscriptionsToRenew)
+            {
+                var newRenewal = new SubscriptionRenewal
+                {
+                    ClientId = clientSub.Client.Id,
+                    SubscriptionId = clientSub.SubscriptionId,
+                    SettedPrice = clientSub.Price,
+                    RenewalProducts = clientSub.Products.Select(x => new SubscriptionRenewalProduct
+                    {
+                        ProductTypeId = x.ProductTypeId,
+                        AvailableQuantity = x.Quantity,
+                    }).ToList()
+                };
+
+                // Update client debt
+                clientSub.Client.Debt += clientSub.Price;
+
+                _db.SubscriptionRenewal.Add(newRenewal);
+            }
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.SubscriptionRenewed();
+
+            return response;
+        }
+        #endregion
+
+        #region Search
+        public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
+        {
+            var query = _db
+                .Client
+                .Include(x => x.Subscriptions)
+                .Include(x => x.Dealer)
+                .Where(x => x.Subscriptions.Any(p => p.Id == rq.SubscriptionId))
+                .OrderBy(x => x.Name)
+                .AsQueryable();
+
+            return new GenericResponse<GetClientListResponse>
+            {
+                Data = new GetClientListResponse
+                {
+                    Clients = await query
+                    .Select(x => new GetClientListResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Address = x.Address,
+                        DealerName = x.Dealer.FullName,
+                        DeliveryDay = x.DeliveryDay
+                    })
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
+        #region Validations
+        private async Task<GenericResponse<T>> ValidateFields<T>(Subscription entity)
+        {
+            var response = new GenericResponse<T>();
+
+            if (string.IsNullOrEmpty(entity.Name) || entity.Products.Count == 0)
+                return response.SetError(Messages.Error.FieldsRequired());
+
+            if (entity.Price < 0)
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("precio"));
+
+            if (entity.Products.Any(x => x.Quantity < 0))
+                return response.SetError(Messages.Error.FieldGraterThanZero("cantidad"));
+
+            if (!await _db.ProductType.AnyAsync(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id)))
+                return response.SetError(Messages.Error.EntitiesNotFound("tipos de producto"));
+
+            return response;
+        }
         #endregion
 
         #region Helpers
         private static IQueryable<Subscription> FilterQuery(IQueryable<Subscription> query, GetAllRequest rq)
         {
-            if (rq.DateFrom <= rq.DateTo)
-            {
-                var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom.Value, DateTimeKind.Utc).Date;
-                var dateToUTC = DateTime.SpecifyKind(rq.DateTo.Value, DateTimeKind.Utc).Date;
-
-                query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
-            }
+            if (!string.IsNullOrEmpty(rq.Name))
+                query = query.Where(x => x.Name.Contains(rq.Name));
 
             return query;
         }

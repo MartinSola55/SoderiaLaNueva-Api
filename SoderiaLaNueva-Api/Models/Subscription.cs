@@ -12,7 +12,7 @@ namespace SoderiaLaNueva_Api.Models
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
 
-        public virtual List<Client> Clients { get; set; } = null!;
+        public virtual List<ClientSubscription> ClientSubscriptions { get; set; } = null!;
         public virtual List<SubscriptionProduct> Products { get; set; } = null!;
         public virtual List<SubscriptionRenewal> Renewals { get; set; } = null!;
     }
