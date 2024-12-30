@@ -13,6 +13,19 @@ namespace SoderiaLaNueva_Api.Services
         private readonly APIContext _db = context;
 
         #region CRUD
+        public GenericResponse<GetFormDataResponse> GetFormData()
+        {
+            var response = new GenericResponse<GetFormDataResponse>
+            {
+                Data = new GetFormDataResponse
+                {
+                    InvoiceTypes = InvoiceTypes.GetInvoiceTypes(),
+                    TaxConditions = TaxCondition.GetTaxConditions(),
+                }
+            };
+            return response;
+        }
+
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db
@@ -69,8 +82,12 @@ namespace SoderiaLaNueva_Api.Services
                     x.TaxCondition,
                     x.CUIT,
                     x.Observations,
-                    Products = x.Products.Select(x => x.Id).ToList(),
-                    Subscriptions = x.Subscriptions.Select(x => x.Id).ToList()
+                    Products = x.Products.Select(x => new GetOneResponse.ProductItem 
+                    {
+                        Id = x.Product.Id.ToString(),
+                        Quantity = x.Stock
+                    }).ToList(),
+                    Subscriptions = x.Subscriptions.Select(x => x.Subscription.Id.ToString()).ToList()
                 })
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
@@ -142,13 +159,16 @@ namespace SoderiaLaNueva_Api.Services
                 Stock = x.Quantity
             }).ToList();
 
-            // Assign or create route
-            await AssignClientRoute(client);
-
             // Save changes
             _db.Client.Add(client);
+
             try
             {
+                await _db.SaveChangesAsync();
+
+                // Assign or create route, we do it here to have new Client's Id
+                await AssignClientRoute(client);
+
                 await _db.SaveChangesAsync();
             }
             catch (Exception)
@@ -330,7 +350,11 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+            // TODO: esto valida otra cosa??
+            //if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+            //    return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
+
+            if (await _db.Subscription.Where(x => rq.SubscriptionIds.Contains(x.Id)).CountAsync() != rq.SubscriptionIds.Count)
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();

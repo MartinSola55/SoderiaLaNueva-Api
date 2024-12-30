@@ -12,11 +12,13 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly SubscriptionService _subscriptionService = subscriptionService;
 
+        # region Combos
         [HttpGet]
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        public async Task<GenericResponse<GenericComboResponse>> GetComboSubscriptions()
         {
-            return await _subscriptionService.GetFormData();
+            return await _subscriptionService.GetComboSubscriptions();
         }
+        #endregion
 
         #region CRUD
         [HttpPost]

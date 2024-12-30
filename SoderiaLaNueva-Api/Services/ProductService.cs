@@ -36,18 +36,21 @@ namespace SoderiaLaNueva_Api.Services
 
         public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
         {
+            var items = await _db.Product
+                .Select(x => new GenericComboResponse.Item
+                {
+                    Id = x.Id.ToString(),
+                    Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
+                })
+                .ToListAsync();
+
             return new GenericResponse<GenericComboResponse>
             {
                 Data = new GenericComboResponse
                 {
-                    Items = await _db.Product
-                    .Select(x => new GenericComboResponse.Item
-                    {
-                        Id = x.Id.ToString(),
-                        Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
-                    })
+                    Items = items
                     .OrderBy(x => x.Description)
-                    .ToListAsync()
+                    .ToList()
                 }
             };
         }

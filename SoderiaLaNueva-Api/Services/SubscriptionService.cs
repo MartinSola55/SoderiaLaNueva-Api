@@ -5,6 +5,7 @@ using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Subscription;
+using SoderiaLaNueva_Api.Helpers;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
@@ -12,26 +13,31 @@ namespace SoderiaLaNueva_Api.Services
     public class SubscriptionService(APIContext context)
     {
         private readonly APIContext _db = context;
-
-        #region Methods
-        public async Task<GenericResponse<GetFormDataResponse>> GetFormData()
+        #region Combos
+        public async Task<GenericResponse<GenericComboResponse>> GetComboSubscriptions()
         {
-            var response = new GenericResponse<GetFormDataResponse>
-            {
-                Data = new GetFormDataResponse
+
+            var items = await _db.Subscription
+                .Select(x => new GenericComboResponse.Item
                 {
-                    Products = await _db
-                    .ProductType
-                    .Select(x => new GetFormDataResponse.Item
-                    {
-                        Id = x.Id,
-                        Name = x.Name
-                    })
-                    .ToListAsync()
+                    Id = x.Id.ToString(),
+                    Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
+                })
+                .ToListAsync();
+
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = items
+                    .OrderBy(x => x.Description)
+                    .ToList()
                 }
             };
-            return response;
         }
+        #endregion
+
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var response = new GenericResponse<GetAllResponse>();
@@ -86,8 +92,7 @@ namespace SoderiaLaNueva_Api.Services
                     Price = x.Price,
                     SubscriptionProducts = x.Products.Select(p => new GetOneResponse.SubscriptionProductItem
                     {
-                        Id = p.ProductType.Id,
-                        Name = p.ProductType.Name,
+                        Id = p.ProductType.Id.ToString(),
                         Quantity = p.Quantity,
                     }).ToList(),
                 })
@@ -95,18 +100,6 @@ namespace SoderiaLaNueva_Api.Services
 
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
-
-            var otherProducts = await _db
-                .ProductType
-                .Where(x => !subscription.SubscriptionProducts.Select(x => x.Id).Contains(x.Id))
-                .Select(x => new GetOneResponse.SubscriptionProductItem
-                {
-                    Id = x.Id,
-                    Name = x.Name,
-                    Quantity = 0
-                }).ToListAsync();
-
-            subscription.SubscriptionProducts = subscription.SubscriptionProducts.Concat(otherProducts).ToList();
 
             response.Data = subscription;
 

@@ -20,10 +20,16 @@
         public string? TaxCondition { get; set; }
         public string? CUIT { get; set; }
 
-        public List<int> Products { get; set; } = [];
-        public List<int> Subscriptions { get; set; } = [];
+        public List<ProductItem> Products { get; set; } = [];
+        public List<string> Subscriptions { get; set; } = [];
         public List<CartsTransfersHistoryItem> SalesHistory { get; set; } = [];
         public List<ProductHistoryItem> ProductHistory { get; set; } = [];
+
+        public class ProductItem
+        {
+            public string Id { get; set; } = null!;
+            public decimal Quantity { get; set; }
+        }
 
         public class CartsTransfersHistoryItem
         {
