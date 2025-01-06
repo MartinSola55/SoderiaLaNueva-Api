@@ -96,7 +96,7 @@ namespace SoderiaLaNueva_Api.Services
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
                 CreatedAt = user.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                Role = user.Role.Name
+                Role = user.Role.Id
             };
 
             return response;
