@@ -8,10 +8,9 @@ using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class ExpenseService(APIContext context, TokenService tokenService)
+    public class ExpenseService(APIContext context)
     {
         private readonly APIContext _db = context;
-        private readonly Token _token = tokenService.GetToken();
 
         #region Methods
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)

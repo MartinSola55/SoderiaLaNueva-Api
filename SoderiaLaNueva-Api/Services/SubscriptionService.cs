@@ -5,7 +5,6 @@ using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Subscription;
-using SoderiaLaNueva_Api.Helpers;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
@@ -16,7 +15,6 @@ namespace SoderiaLaNueva_Api.Services
         #region Combos
         public async Task<GenericResponse<GenericComboResponse>> GetComboSubscriptions()
         {
-
             var items = await _db.Subscription
                 .Select(x => new GenericComboResponse.Item
                 {
@@ -339,7 +337,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                 .Include(x => x.Subscription)
                     .ThenInclude(x => x.Products)
-                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Where(x => renewedSubs.Count == 0 || !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
                 .Where(x => clients.Contains(x.ClientId))
                 .Select(x => new
                 {

@@ -100,6 +100,7 @@ namespace SoderiaLaNueva_Api.Services
                 DeliveryDay = x.DeliveryDay,
                 Carts = x.Carts.Select(y => new GetStaticRouteResponse.CartItem
                 {
+                    Id = y.Id,
                     ClientId = y.ClientId,
                     Name = y.Client.Name,
                     Debt = y.Client.Debt,
@@ -268,11 +269,32 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => !x.IsStatic && x.Id == rq.Id)
                 .AsQueryable();
 
+            // Todo: cambiar y hacer query nueva
+            var cartData = await query
+                .Select(x => new
+                {
+                    x.Carts,
+                    x.DealerId,
+                })
+                .FirstAsync();
+
+            var transfersAmount = _db
+                .Transfer
+                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && cartData.Carts.Select(y => y.Client.Id).Contains(x.ClientId))
+                .Sum(x => x.Amount);
+
+            var spentAmount = _db
+                .Expense
+                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && x.DealerId == cartData.DealerId)
+                .Sum(x => x.Amount);
+
             response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
                 Id = x.Id,
                 Dealer = x.Dealer.FullName,
                 DeliveryDay = x.DeliveryDay,
+                TransfersAmount = transfersAmount,
+                SpentAmount = spentAmount,
                 Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
@@ -286,6 +308,8 @@ namespace SoderiaLaNueva_Api.Services
                     }).ToList(),
                     Products = y.Products.Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
                     {
+                        ProductTypeId = p.ProductTypeId,
+                        ProductId = p.ProductTypeId,
                         Name = p.Type.Name,
                         Price = p.SettedPrice,
                         SoldQuantity = p.SoldQuantity,
@@ -307,7 +331,7 @@ namespace SoderiaLaNueva_Api.Services
                             Price = z.Product.Price,
                             Stock = z.Stock
                         }).ToList(),
-                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicRouteResponse.CartItem.ClientSubsctiptionProductItem
+                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicRouteResponse.CartItem.ClientSubscriptionProductItem
                         {
                             TypeId = z.ProductTypeId,
                             Name = z.Type.Name,
@@ -406,7 +430,12 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityCreated("Ruta", true);
+            response.Message = Messages.Operations.RouteOpened();
+            response.Data = new OpenNewResponse
+            {
+                Id= route.Id
+            };
+
             return response;
         }
 

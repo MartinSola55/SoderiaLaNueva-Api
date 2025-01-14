@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Cart;
+using SoderiaLaNueva_Api.Models.DAO.Route;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
@@ -14,7 +16,40 @@ namespace SoderiaLaNueva_Api.Services
         private readonly AuthService _auth = authService;
         private readonly Token _token = tokenService.GetToken();
 
+        #region Combos
+        public async Task<GenericResponse<GenericComboResponse>> GetPaymentStatusesCombo()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = await _db.PaymentMethod
+                    .Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x.Id.ToString(),
+                        Description = x.Name
+                    })
+                    .OrderBy(x => x.Description)
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
         #region Basic methods
+        public GenericResponse<GetFormDataResponse> GetFormData()
+        {
+            var response = new GenericResponse<GetFormDataResponse>
+            {
+                Data = new GetFormDataResponse
+                {
+                    CartStatuses = CartStatuses.GetCartStatuses(),
+                    CartTransfersTypes = CartsTransfersType.GetCartsTransfersTypes(),
+                    CartPaymentStatuses = PaymentStatuses.GetPaymentStatuses(),
+                }
+            };
+            return response;
+        }
         public async Task<GenericResponse<GetOneResponse>> GetOne(GetOneRequest rq)
         {
             var response = new GenericResponse<GetOneResponse>();
@@ -49,6 +84,12 @@ namespace SoderiaLaNueva_Api.Services
                         SoldQuantity = y.SoldQuantity,
                         ReturnedQuantity = y.ReturnedQuantity,
                     }).ToList(),
+                    PaymentMethods = x.PaymentMethods.Select(y => new GetOneResponse.PaymentMethodItem
+                    {
+                        Id = y.Id,
+                        Amount= y.Amount,
+                        Name = y.PaymentMethod.Name,
+                    }).ToList()
                 }).FirstOrDefaultAsync()
             };
         }
@@ -67,6 +108,8 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                     .ThenInclude(x => x.Products)
                     .ThenInclude(x => x.Product)
+                .Include(x => x.Products)
+                .Include(x => x.PaymentMethods)
                 .FirstAsync(x => x.Id == rq.Id);
 
             if (cart.Status != CartStatuses.Pending)
@@ -95,11 +138,13 @@ namespace SoderiaLaNueva_Api.Services
             // Retrieve available products
             var availableProducts = await _db
                 .SubscriptionRenewalProduct
+                .Include(x => x.Type)
                 .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
                 .Where(x => x.CreatedAt.Month == DateTime.UtcNow.Month)
                 .Where(x => x.CreatedAt.Year == DateTime.UtcNow.Year)
                 .ToListAsync();
 
+            // TODO: Ver que pasa si no tiene abonos, y el mensaje seria abono creo. o seria agregar si re.Subs tiene algo
             if (availableProducts.Count == 0)
                 return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
 
@@ -107,19 +152,19 @@ namespace SoderiaLaNueva_Api.Services
             foreach (var product in rq.SubscriptionProducts)
             {
                 // Filter products by type
-                var availableType = availableProducts
+                var availableTypes = availableProducts
                     .Where(x => x.ProductTypeId == product.ProductTypeId)
                     .ToList();
 
-                if (availableType.Count == 0)
+                if (availableTypes.Count == 0)
                     return response.SetError(Messages.Error.EntitiesNotFound("productos del abono"));
 
-                if (availableType.Sum(x => x.AvailableQuantity) < product.Quantity)
-                    return response.SetError(Messages.Error.NotEnoughStock($"{availableType.First().Type.Name} (abono)"));
+                if (availableTypes.Sum(x => x.AvailableQuantity) < product.Quantity)
+                    return response.SetError(Messages.Error.NotEnoughStock($"{availableTypes.First().Type.Name} (abono)"));
 
                 // Update available stock for subscription products
                 int quantity = product.Quantity;
-                foreach (var availableProduct in availableType)
+                foreach (var availableProduct in availableTypes)
                 {
                     if (availableProduct.AvailableQuantity >= quantity)
                     {
@@ -134,7 +179,10 @@ namespace SoderiaLaNueva_Api.Services
                 }
 
                 // Update client stock
-                var clientProduct = cart.Client.Products.First(x => x.Product.TypeId == product.ProductTypeId);
+
+                // TODO: crear relacion cliente producto cuando creas abonos
+                var clientProduct = cart.Client.Products.First(x => x.Product?.TypeId == product.ProductTypeId);
+
                 clientProduct.Stock += product.Quantity;
 
                 // Update existing products or add new if the type not exists
@@ -181,6 +229,21 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.Operations.CartConfirmed();
+            response.Data = new ConfirmResponse
+            {
+                Id = cart.Id,
+                //Products = cart.Products.Select(p => new ConfirmResponse.ProductItem
+                //{
+                //    ProductTypeId = p.ProductTypeId,
+                //    ProductId = p.ProductTypeId,
+                //    Name = p.Type.Name,
+                //    Price = p.SettedPrice,
+                //    SoldQuantity = p.SoldQuantity,
+                //    ReturnedQuantity = p.ReturnedQuantity,
+                //    SubscriptionQuantity = p.SubscriptionQuantity
+                //}).ToList(),
+            };
+
             return response;
         }
 
@@ -425,6 +488,9 @@ namespace SoderiaLaNueva_Api.Services
             if (!await _db.Cart.AnyAsync(x => x.Id == rq.Id))
                 return response.SetError(Messages.Error.EntityNotFound("Bajada", true));
 
+            if (!CartStatuses.Validate(rq.Status))
+                return response.SetError(Messages.Error.InvalidField("estado"));
+
             var cart = await _db
                 .Cart
                 .FirstAsync(x => x.Id == rq.Id);
@@ -519,5 +585,6 @@ namespace SoderiaLaNueva_Api.Services
         }
 
         #endregion
+
     }
 }

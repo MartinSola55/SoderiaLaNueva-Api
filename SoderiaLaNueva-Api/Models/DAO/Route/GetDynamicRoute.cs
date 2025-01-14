@@ -11,6 +11,8 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
         public int Id { get; set; }
         public string Dealer { get; set; } = null!;
         public int DeliveryDay { get; set; }
+        public decimal TransfersAmount { get; set; }
+        public decimal SpentAmount { get; set; }
         public List<CartItem> Carts { get; set; } = [];
 
         public class CartItem
@@ -32,7 +34,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public string Address { get; set; } = null!;
                 public string? Observations { get; set; } = null!;
                 public List<ClientProductItem> Products { get; set; } = [];
-                public List<ClientSubsctiptionProductItem> SubscriptionProducts { get; set; } = [];
+                public List<ClientSubscriptionProductItem> SubscriptionProducts { get; set; } = [];
 
             }
 
@@ -44,7 +46,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public int Stock { get; set; }
             }
 
-            public class ClientSubsctiptionProductItem
+            public class ClientSubscriptionProductItem
             {
                 public int TypeId { get; set; }
                 public string Name { get; set; } = null!;
@@ -53,11 +55,13 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
 
             public class ProductItem
             {
+                public int ProductTypeId { get; set; }
+                public int ProductId { get; set; }
                 public string Name { get; set; } = null!;
                 public decimal Price { get; set; }
                 public int SoldQuantity { get; set; }
-                public int SubscriptionQuantity { get; set; }
                 public int ReturnedQuantity { get; set; }
+                public int SubscriptionQuantity { get; set; }
             }
 
             public class PaymentItem

@@ -15,6 +15,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
 
         public class CartItem
         {
+            public int Id { get; set; }
             public int ClientId { get; set; }
             public string Name { get; set; } = null!;
             public decimal Debt { get; set; }

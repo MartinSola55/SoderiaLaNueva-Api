@@ -151,7 +151,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            if (!response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+            if (rq.Products.Count > 0 && !response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
                 return response;
 
             client.Products = rq.Products.Select(x => new ClientProduct()
@@ -393,6 +393,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 var route = await _db
                     .Route
+                    .Include(x => x.Carts)
                     .FirstOrDefaultAsync(x => x.IsStatic && x.DealerId == client.DealerId && x.DeliveryDay == client.DeliveryDay);
 
                 var newCart = new Cart
@@ -585,6 +586,12 @@ namespace SoderiaLaNueva_Api.Services
 
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
                 return response.SetError(Messages.Error.FieldsRequired());
+
+            if (!InvoiceTypes.Validate(entity.InvoiceType))
+                return response.SetError(Messages.Error.InvalidField("tipo de factura"));
+
+            if (!TaxCondition.Validate(entity.TaxCondition))
+                return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
 
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
