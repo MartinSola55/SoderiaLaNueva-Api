@@ -36,6 +36,31 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        public async Task<GenericResponse<GenericComboResponse>> GetComboDealers()
+        {
+            var query = _db
+                .User
+                .Include(x => x.Role)
+                .Where(x => x.Role.NormalizedName == "DEALER") // Don't like but it's the easiest way
+                .OrderBy(x => x.FullName)
+                .AsQueryable();
+
+            var response = new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = await query
+                    .Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x.Id,
+                        Description = x.FullName
+                    })
+                    .ToListAsync()
+                }
+            };
+            return response;
+        }
+
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db.User.AsQueryable();

@@ -27,8 +27,9 @@
 
         public class ProductItem
         {
-            public string Id { get; set; } = null!;
-            public decimal Quantity { get; set; }
+            public int Id { get; set; }
+            public string Name { get; set; } = null!;
+            public int Quantity { get; set; }
         }
 
         public class CartsTransfersHistoryItem

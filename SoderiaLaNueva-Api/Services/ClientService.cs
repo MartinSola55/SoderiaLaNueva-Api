@@ -12,20 +12,39 @@ namespace SoderiaLaNueva_Api.Services
     {
         private readonly APIContext _db = context;
 
-        #region CRUD
-        public GenericResponse<GetFormDataResponse> GetFormData()
+        #region Combos
+        public GenericResponse<GenericComboResponse> GetComboTaxConditions()
         {
-            var response = new GenericResponse<GetFormDataResponse>
+            return new GenericResponse<GenericComboResponse>
             {
-                Data = new GetFormDataResponse
+                Data = new GenericComboResponse
                 {
-                    InvoiceTypes = InvoiceTypes.GetInvoiceTypes(),
-                    TaxConditions = TaxCondition.GetTaxConditions(),
+                    Items = TaxCondition.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x,
+                        Description = x
+                    }).ToList()
                 }
             };
-            return response;
         }
 
+        public GenericResponse<GenericComboResponse> GetComboInvoiceTypes()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = InvoiceTypes.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        Id = x,
+                        Description = x
+                    }).ToList()
+                }
+            };
+        }
+        #endregion
+
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db
@@ -67,6 +86,8 @@ namespace SoderiaLaNueva_Api.Services
             var client = await _db
                 .Client
                 .Include(x => x.Products)
+                    .ThenInclude(x => x.Product)
+                        .ThenInclude(x => x.Type)
                 .Include(x => x.Subscriptions)
                 .Select(x => new
                 {
@@ -85,7 +106,8 @@ namespace SoderiaLaNueva_Api.Services
                     x.Observations,
                     Products = x.Products.Select(x => new GetOneResponse.ProductItem 
                     {
-                        Id = x.Product.Id.ToString(),
+                        Id = x.Product.Id,
+                        Name = $"{x.Product.Type.Name} - ${x.Product.Price}",
                         Quantity = x.Stock
                     }).ToList(),
                     Subscriptions = x.Subscriptions.Select(x => x.Subscription.Id.ToString()).ToList()
@@ -587,10 +609,10 @@ namespace SoderiaLaNueva_Api.Services
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
                 return response.SetError(Messages.Error.FieldsRequired());
 
-            if (!InvoiceTypes.Validate(entity.InvoiceType))
+            if (!string.IsNullOrEmpty(entity.InvoiceType) && !InvoiceTypes.Validate(entity.InvoiceType))
                 return response.SetError(Messages.Error.InvalidField("tipo de factura"));
 
-            if (!TaxCondition.Validate(entity.TaxCondition))
+            if (!string.IsNullOrEmpty(entity.TaxCondition) && !TaxCondition.Validate(entity.TaxCondition))
                 return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
 
             // Check duplicate client. Same CUIT or same name and address

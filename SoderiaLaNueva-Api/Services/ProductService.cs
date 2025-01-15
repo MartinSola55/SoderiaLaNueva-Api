@@ -315,6 +315,7 @@ namespace SoderiaLaNueva_Api.Services
             return column switch
             {
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
+                "name" => direction == "asc" ? query.OrderBy(x => x.Name) : query.OrderByDescending(x => x.Name),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };
         }
