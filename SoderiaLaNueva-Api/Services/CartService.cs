@@ -26,7 +26,7 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await _db.PaymentMethod
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id.ToString(),
+                        Id = x.Id,
                         Description = x.Name
                     })
                     .OrderBy(x => x.Description)

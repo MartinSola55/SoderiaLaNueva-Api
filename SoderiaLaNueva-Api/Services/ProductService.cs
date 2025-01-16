@@ -24,7 +24,7 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await _db.ProductType
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id.ToString(),
+                        Id = x.Id,
                         Description = x.Name
                     })
                     .OrderBy(x => x.Description)
@@ -39,7 +39,7 @@ namespace SoderiaLaNueva_Api.Services
             var items = await _db.Product
                 .Select(x => new GenericComboResponse.Item
                 {
-                    Id = x.Id.ToString(),
+                    Id = x.Id,
                     Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
                 })
                 .ToListAsync();

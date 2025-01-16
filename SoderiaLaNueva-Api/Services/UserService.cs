@@ -27,7 +27,7 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await _db.Roles
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
+                        StringId = x.Id,
                         Description = x.Name
                     })
                     .ToListAsync()
@@ -52,7 +52,7 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await query
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
+                        StringId = x.Id,
                         Description = x.FullName
                     })
                     .ToListAsync()

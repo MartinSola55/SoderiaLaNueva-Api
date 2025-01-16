@@ -21,7 +21,7 @@ namespace SoderiaLaNueva_Api.Services
                 {
                     Items = TaxCondition.GetAll().Select(x => new GenericComboResponse.Item
                     {
-                        Id = x,
+                        StringId = x,
                         Description = x
                     }).ToList()
                 }
@@ -36,7 +36,7 @@ namespace SoderiaLaNueva_Api.Services
                 {
                     Items = InvoiceTypes.GetAll().Select(x => new GenericComboResponse.Item
                     {
-                        Id = x,
+                        StringId = x,
                         Description = x
                     }).ToList()
                 }

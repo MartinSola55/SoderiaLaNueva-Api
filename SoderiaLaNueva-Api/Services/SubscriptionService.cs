@@ -18,7 +18,7 @@ namespace SoderiaLaNueva_Api.Services
             var items = await _db.Subscription
                 .Select(x => new GenericComboResponse.Item
                 {
-                    Id = x.Id.ToString(),
+                    Id = x.Id,
                     Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
                 })
                 .ToListAsync();

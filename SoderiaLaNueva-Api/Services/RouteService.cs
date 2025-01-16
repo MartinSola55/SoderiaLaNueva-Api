@@ -32,7 +32,7 @@ namespace SoderiaLaNueva_Api.Services
                     TotalCount = await query.CountAsync(),
                     Items = await query.Select(x => new GetClientsListResponse.ClientItem
                     {
-                        ClientId = x.Id.ToString(),
+                        ClientId = x.Id,
                         Name = x.Name,
                         Address = x.Address
                     })
