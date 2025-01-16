@@ -393,27 +393,27 @@ namespace SoderiaLaNueva_Api.Services
         #region Search
         public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
         {
-            var query = _db
+            var clients = await _db
                 .Client
                 .Include(x => x.Subscriptions)
                 .Include(x => x.Dealer)
-                .Where(x => x.Subscriptions.Any(p => p.Id == rq.SubscriptionId))
+                .Where(x => x.Subscriptions.Any(p => p.SubscriptionId == rq.SubscriptionId))
+                .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
-                .AsQueryable();
+                .Select(x => new GetClientListResponse.ClientItem
+                {
+                    Name = x.Name,
+                    Address = x.Address,
+                    DealerName = x.Dealer.FullName,
+                    DeliveryDay = x.DeliveryDay
+                })
+                .ToListAsync();
 
             return new GenericResponse<GetClientListResponse>
             {
                 Data = new GetClientListResponse
                 {
-                    Clients = await query
-                    .Select(x => new GetClientListResponse.ClientItem
-                    {
-                        Name = x.Name,
-                        Address = x.Address,
-                        DealerName = x.Dealer.FullName,
-                        DeliveryDay = x.DeliveryDay
-                    })
-                    .ToListAsync()
+                    Clients = clients
                 }
             };
         }
@@ -435,6 +435,9 @@ namespace SoderiaLaNueva_Api.Services
 
             if (!await _db.ProductType.AnyAsync(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("tipos de producto"));
+
+            if (await _db.Subscription.AnyAsync(x => x.Name == entity.Name && x.Price == entity.Price && x.Id != entity.Id))
+                return response.SetError(Messages.Error.DuplicateEntity("abono"));
 
             return response;
         }

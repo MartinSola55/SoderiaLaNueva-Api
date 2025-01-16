@@ -259,27 +259,26 @@ namespace SoderiaLaNueva_Api.Services
         #region Search
         public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
         {
-            var query = _db
+            var clients = await _db
                 .Client
                 .Include(x => x.Products)
                 .Include(x => x.Dealer)
-                .Where(x => x.Products.Any(p => p.Id == rq.ProductId))
+                .Where(x => x.Products.Any(p => p.ProductId == rq.ProductId))
+                .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
-                .AsQueryable();
+                .Select(x => new GetClientListResponse.ClientItem
+                {
+                    Name = x.Name,
+                    Address = x.Address,
+                    DealerName = x.Dealer.FullName,
+                    DeliveryDay = x.DeliveryDay
+                }).ToListAsync();
 
             return new GenericResponse<GetClientListResponse>
             {
                 Data = new GetClientListResponse
                 {
-                    Clients = await query
-                    .Select(x => new GetClientListResponse.ClientItem
-                    {
-                        Name = x.Name,
-                        Address = x.Address,
-                        DealerName = x.Dealer.FullName,
-                        DeliveryDay = x.DeliveryDay
-                    })
-                    .ToListAsync()
+                    Clients = clients
                 }
             };
         }
