@@ -23,7 +23,7 @@ namespace SoderiaLaNueva_Api.Services
                     .Where(x => x.Role.Name == Roles.Dealer)
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
+                        StringId = x.Id,
                         Description = x.FullName
                     })
                     .OrderBy(x => x.Description)

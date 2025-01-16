@@ -28,8 +28,17 @@
     public class ConfirmResponse
     {
         public int Id { get; set; }
-        public string Name { get; set; } = null!;
-        public decimal Price { get; set; }
-        public int TypeId { get; set; }
+        public List<ProductItem> Products { get; set; } = [];
+
+        public class ProductItem
+        {
+            public int ProductTypeId { get; set; }
+            public int ProductId { get; set; }
+            public string Name { get; set; } = null!;
+            public decimal Price { get; set; }
+            public int SoldQuantity { get; set; }
+            public int ReturnedQuantity { get; set; }
+            public int SubscriptionQuantity { get; set; }
+        }
     }
 }

@@ -12,6 +12,38 @@ namespace SoderiaLaNueva_Api.Services
     {
         private readonly APIContext _db = context;
 
+        #region Combos
+        public GenericResponse<GenericComboResponse> GetComboTaxConditions()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = TaxCondition.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        StringId = x,
+                        Description = x
+                    }).ToList()
+                }
+            };
+        }
+
+        public GenericResponse<GenericComboResponse> GetComboInvoiceTypes()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = InvoiceTypes.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        StringId = x,
+                        Description = x
+                    }).ToList()
+                }
+            };
+        }
+        #endregion
+
         #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
@@ -54,6 +86,8 @@ namespace SoderiaLaNueva_Api.Services
             var client = await _db
                 .Client
                 .Include(x => x.Products)
+                    .ThenInclude(x => x.Product)
+                        .ThenInclude(x => x.Type)
                 .Include(x => x.Subscriptions)
                 .Select(x => new
                 {
@@ -70,8 +104,13 @@ namespace SoderiaLaNueva_Api.Services
                     x.TaxCondition,
                     x.CUIT,
                     x.Observations,
-                    Products = x.Products.Select(x => x.Id).ToList(),
-                    Subscriptions = x.Subscriptions.Select(x => x.Id).ToList()
+                    Products = x.Products.Select(x => new GetOneResponse.ProductItem 
+                    {
+                        Id = x.Product.Id,
+                        Name = $"{x.Product.Type.Name} - ${x.Product.Price}",
+                        Quantity = x.Stock
+                    }).ToList(),
+                    Subscriptions = x.Subscriptions.Select(x => x.Subscription.Id.ToString()).ToList()
                 })
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
@@ -134,7 +173,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            if (!response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+            if (rq.Products.Count > 0 && !response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
                 return response;
 
             client.Products = rq.Products.Select(x => new ClientProduct()
@@ -143,13 +182,16 @@ namespace SoderiaLaNueva_Api.Services
                 Stock = x.Quantity
             }).ToList();
 
-            // Assign or create route
-            await AssignClientRoute(client);
-
             // Save changes
             _db.Client.Add(client);
+
             try
             {
+                await _db.SaveChangesAsync();
+
+                // Assign or create route, we do it here to have new Client's Id
+                await AssignClientRoute(client);
+
                 await _db.SaveChangesAsync();
             }
             catch (Exception)
@@ -331,7 +373,11 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+            // TODO: esto valida otra cosa??
+            //if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+            //    return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
+
+            if (await _db.Subscription.Where(x => rq.SubscriptionIds.Contains(x.Id)).CountAsync() != rq.SubscriptionIds.Count)
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
@@ -369,6 +415,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 var route = await _db
                     .Route
+                    .Include(x => x.Carts)
                     .FirstOrDefaultAsync(x => x.IsStatic && x.DealerId == client.DealerId && x.DeliveryDay == client.DeliveryDay);
 
                 var newCart = new Cart
@@ -561,6 +608,12 @@ namespace SoderiaLaNueva_Api.Services
 
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
                 return response.SetError(Messages.Error.FieldsRequired());
+
+            if (!string.IsNullOrEmpty(entity.InvoiceType) && !InvoiceTypes.Validate(entity.InvoiceType))
+                return response.SetError(Messages.Error.InvalidField("tipo de factura"));
+
+            if (!string.IsNullOrEmpty(entity.TaxCondition) && !TaxCondition.Validate(entity.TaxCondition))
+                return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
 
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())

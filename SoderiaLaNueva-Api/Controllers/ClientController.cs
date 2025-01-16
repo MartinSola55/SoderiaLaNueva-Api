@@ -11,6 +11,20 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly ClientService _clientService = clientService;
 
+        #region Combos
+        [HttpGet]
+        public GenericResponse<GenericComboResponse> GetComboTaxConditions()
+        {
+            return _clientService.GetComboTaxConditions();
+        }
+
+        [HttpGet]
+        public GenericResponse<GenericComboResponse> GetComboInvoiceTypes()
+        {
+            return _clientService.GetComboInvoiceTypes();
+        }
+        #endregion
+
         #region CRUD
         [HttpPost]
         public async Task<GenericResponse<GetAllResponse>> GetAll([FromBody] GetAllRequest rq)

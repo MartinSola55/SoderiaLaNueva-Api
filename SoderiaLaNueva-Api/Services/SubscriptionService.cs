@@ -12,25 +12,26 @@ namespace SoderiaLaNueva_Api.Services
     public class SubscriptionService(APIContext context)
     {
         private readonly APIContext _db = context;
-
         #region Combos
         public async Task<GenericResponse<GenericComboResponse>> GetComboSubscriptions()
         {
-            var response = new GenericResponse<GenericComboResponse>
+            var items = await _db.Subscription
+                .Select(x => new GenericComboResponse.Item
+                {
+                    Id = x.Id,
+                    Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
+                })
+                .ToListAsync();
+
+            return new GenericResponse<GenericComboResponse>
             {
                 Data = new GenericComboResponse
                 {
-                    Items = await _db.Subscription
-                    .Select(x => new GenericComboResponse.Item
-                    {
-                        Id = x.Id.ToString(),
-                        Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
-                    })
+                    Items = items
                     .OrderBy(x => x.Description)
-                    .ToListAsync()
+                    .ToList()
                 }
             };
-            return response;
         }
         #endregion
 
@@ -87,8 +88,7 @@ namespace SoderiaLaNueva_Api.Services
                     Price = x.Price,
                     SubscriptionProducts = x.Products.Select(p => new GetOneResponse.SubscriptionProductItem
                     {
-                        Id = p.ProductType.Id,
-                        Name = p.ProductType.Name,
+                        Id = p.ProductType.Id.ToString(),
                         Quantity = p.Quantity,
                     }).ToList(),
                 })
@@ -96,18 +96,6 @@ namespace SoderiaLaNueva_Api.Services
 
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
-
-            var otherProducts = await _db
-                .ProductType
-                .Where(x => !subscription.SubscriptionProducts.Select(x => x.Id).Contains(x.Id))
-                .Select(x => new GetOneResponse.SubscriptionProductItem
-                {
-                    Id = x.Id,
-                    Name = x.Name,
-                    Quantity = 0
-                }).ToListAsync();
-
-            subscription.SubscriptionProducts = subscription.SubscriptionProducts.Concat(otherProducts).ToList();
 
             response.Data = subscription;
 
@@ -349,7 +337,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                 .Include(x => x.Subscription)
                     .ThenInclude(x => x.Products)
-                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Where(x => renewedSubs.Count == 0 || !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
                 .Where(x => clients.Contains(x.ClientId))
                 .Select(x => new
                 {
@@ -405,27 +393,27 @@ namespace SoderiaLaNueva_Api.Services
         #region Search
         public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
         {
-            var query = _db
+            var clients = await _db
                 .Client
                 .Include(x => x.Subscriptions)
                 .Include(x => x.Dealer)
-                .Where(x => x.Subscriptions.Any(p => p.Id == rq.SubscriptionId))
+                .Where(x => x.Subscriptions.Any(p => p.SubscriptionId == rq.SubscriptionId))
+                .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
-                .AsQueryable();
+                .Select(x => new GetClientListResponse.ClientItem
+                {
+                    Name = x.Name,
+                    Address = x.Address,
+                    DealerName = x.Dealer.FullName,
+                    DeliveryDay = x.DeliveryDay
+                })
+                .ToListAsync();
 
             return new GenericResponse<GetClientListResponse>
             {
                 Data = new GetClientListResponse
                 {
-                    Clients = await query
-                    .Select(x => new GetClientListResponse.ClientItem
-                    {
-                        Name = x.Name,
-                        Address = x.Address,
-                        DealerName = x.Dealer.FullName,
-                        DeliveryDay = x.DeliveryDay
-                    })
-                    .ToListAsync()
+                    Clients = clients
                 }
             };
         }
@@ -447,6 +435,9 @@ namespace SoderiaLaNueva_Api.Services
 
             if (!await _db.ProductType.AnyAsync(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("tipos de producto"));
+
+            if (await _db.Subscription.AnyAsync(x => x.Name == entity.Name && x.Price == entity.Price && x.Id != entity.Id))
+                return response.SetError(Messages.Error.DuplicateEntity("abono"));
 
             return response;
         }

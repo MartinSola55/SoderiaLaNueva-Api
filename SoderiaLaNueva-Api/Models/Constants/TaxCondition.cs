@@ -12,7 +12,7 @@
             return !string.IsNullOrEmpty(condition) && typeof(TaxCondition).GetFields().Any(f => f.GetValue(null)?.ToString() == condition);
         }
 
-        public static List<string> GetTaxConditions()
+        public static List<string> GetAll()
         {
             var conditions = new List<string>();
 

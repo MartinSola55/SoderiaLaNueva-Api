@@ -18,7 +18,7 @@
             }
             public static string EntitiesNotFound(string entitiesName, bool femine = false)
             {
-                return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s" + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
+                return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s " + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
             }
             public static string SaveEntity(string entityName)
             {
@@ -124,6 +124,10 @@
             {
                 return "El cliente no puede tener más de un producto del mismo tipo.";
             }
+            public static string ProductDoesNotExistsForType(string productTypeName)
+            {
+                return "No existe un producto cargado para el tipo de producto " +productTypeName + ".";
+            }
         }
         public class CRUD
         {
@@ -149,6 +153,10 @@
             public static string RouteClosed()
             {
                 return "La ruta ha sido cerrada correctamente.";
+            }
+            public static string RouteOpened()
+            {
+                return "La ruta ha sido abierta correctamente.";
             }
             public static string ClientsUpdated()
             {
