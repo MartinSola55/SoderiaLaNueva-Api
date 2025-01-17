@@ -34,6 +34,12 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _statsService.GetProductSales(rq);
         }
 
+        [HttpGet]
+        public async Task<GenericResponse<GetBalanceByDayResponse>> GetBalanceByDay([FromQuery] GetBalanceByDayRequest rq)
+        {
+            return await _statsService.GetBalanceByDay(rq);
+        }
+
         #endregion
     }
 }

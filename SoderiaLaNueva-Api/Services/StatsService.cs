@@ -201,6 +201,49 @@ namespace SoderiaLaNueva_Api.Services
 
             return response;
         }
+
+        public async Task<GenericResponse<GetBalanceByDayResponse>> GetBalanceByDay(GetBalanceByDayRequest rq)
+        {
+            var cartPaymentMethods = new GetBalanceByDayResponse.Item()
+            {
+                Name = "Bajadas",
+                Total = await _db
+                    .CartPaymentMethod
+                    .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                    .SumAsync(x => x.Amount),
+            };
+
+            var transfers = new GetBalanceByDayResponse.Item()
+            {
+                Name = "Transferencias",
+                Total = await _db
+                    .Transfer
+                    .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                    .SumAsync(x => x.Amount),
+            };
+
+            var expenses = new GetBalanceByDayResponse.Item()
+            {
+                Name = "Gastos",
+                Total = await _db
+                    .Expense
+                    .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                    .SumAsync(x => x.Amount)
+            };
+
+            return new GenericResponse<GetBalanceByDayResponse>()
+            {
+                Data = new GetBalanceByDayResponse()
+                {
+                    Items = new List<GetBalanceByDayResponse.Item>()
+                    {
+                        cartPaymentMethods,
+                        transfers,
+                        expenses,
+                    },
+                },
+            };
+        }
         #endregion
     }
 }

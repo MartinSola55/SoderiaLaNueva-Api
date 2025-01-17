@@ -17,13 +17,8 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public int TotalCarts { get; set; }
             public int CompletedCarts { get; set; }
             public decimal TotalCollected { get; set; }
-            public List<ProductItem> SoldProducts { get; set; } = [];
+            public List<string> SoldProducts { get; set; } = [];
 
-            public class ProductItem
-            {
-                public string Name { get; set; } = null!;
-                public int Quantity { get; set; }
-            }
         }
     }
 }

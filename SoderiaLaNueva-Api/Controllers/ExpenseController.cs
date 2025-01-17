@@ -37,5 +37,13 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _expenseService.Delete(rq);
         }
         #endregion
+
+        #region Stats
+        [HttpGet]
+        public async Task<GenericResponse<GetExpensesByDateResponse>> GetExpensesByDate([FromQuery] GetExpensesByDateRequest rq)
+        {
+            return await _expenseService.GetExpensesByDate(rq);
+        }
+        #endregion
     }
 }

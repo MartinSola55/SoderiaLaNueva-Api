@@ -359,6 +359,14 @@ namespace SoderiaLaNueva_Api.Services
                 query = query.Where(x => x.DealerId == _token.UserId);
             }
 
+            var productTypes = await _db
+                .ProductType
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name
+                }).ToListAsync();
+
             var response = new GenericResponse<GetDynamicRoutesResponse>
             {
                 Data = new GetDynamicRoutesResponse
@@ -369,13 +377,8 @@ namespace SoderiaLaNueva_Api.Services
                         Dealer = x.Dealer.FullName,
                         TotalCarts = x.Carts.Count,
                         CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
-                        TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice),
-                        SoldProducts = x.Carts
-                        .SelectMany(y => y.Products.Select(z => new GetDynamicRoutesResponse.RouteItem.ProductItem
-                        {
-                            Name = z.Type.Name,
-                            Quantity = z.SoldQuantity,
-                        })).ToList()
+                        TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice), // TODO: Sum transfers
+                        SoldProducts = new(),// TODO;
                     })
                     .OrderBy(x => x.Dealer)
                     .ToListAsync()

@@ -157,6 +157,29 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
+        #region Stats
+        public async Task<GenericResponse<GetExpensesByDateResponse>> GetExpensesByDate(GetExpensesByDateRequest rq)
+        {
+            return new GenericResponse<GetExpensesByDateResponse>
+            {
+                Data = new GetExpensesByDateResponse
+                {
+                    Expenses = await _db
+                    .Expense
+                    .Include(x => x.Dealer)
+                    .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                    .Select(x => new GetExpensesByDateResponse.ExpenseItem
+                    {
+                        DealerName = x.Dealer.FullName,
+                        Description = x.Description,
+                        Amount = x.Amount
+                    })
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
         #region Helpers
         private static IQueryable<Expense> FilterQuery(IQueryable<Expense> query, GetAllRequest rq)
         {
