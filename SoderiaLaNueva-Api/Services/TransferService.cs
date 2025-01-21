@@ -80,7 +80,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityCreated("Transferencia");
+            response.Message = Messages.CRUD.EntityCreated("Transferencia", true);
             response.Data = new CreateResponse
             {
                 Id = transfer.Id,
@@ -88,7 +88,7 @@ namespace SoderiaLaNueva_Api.Services
                 Address = client.Address,
                 Phone = client.Phone,
                 Amount = transfer.Amount,
-                DealerName = client.Dealer.FullName,
+                DealerName = client.Dealer?.FullName ?? "",
             };
             return response;
         }
