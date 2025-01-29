@@ -16,4 +16,13 @@
             public int TotalCarts { get; set; }
         }
     }
+    public class GetAllDealerStaticResponse
+    {
+        public List<Item> Routes { get; set; } = [];
+        public class Item : GetAllStaticResponse.Item
+        {
+            public int DeliveryDay { get; set; }
+        }
+
+    }
 }

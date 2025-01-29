@@ -60,6 +60,9 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Cart
                 .Include(x => x.Client)
+                    .ThenInclude(x => x.SubscriptionRenewals)
+                .Include(x => x.Client)
+                    .ThenInclude(x => x.Products)
                 .Include(x => x.Route)
                     .ThenInclude(x => x.Dealer)
                 .Include(x => x.Products)
@@ -77,17 +80,35 @@ namespace SoderiaLaNueva_Api.Services
                     DeliveryDay = x.Route.DeliveryDay,
                     Dealer = x.Route.Dealer.FullName,
                     Client = x.Client.Name,
+                    SubscriptionProducts = x.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetOneResponse.SubscriptionProductItem
+                    {
+                        TypeId = z.ProductTypeId,
+                        Name = z.Type.Name,
+                        Available = z.AvailableQuantity
+                    }).ToList(),
                     Products = x.Products.Select(y => new GetOneResponse.ProductItem()
                     {
                         Id = y.Id,
+                        ProductTypeId = y.ProductTypeId,
                         Name = y.Type.Name,
                         SoldQuantity = y.SoldQuantity,
                         ReturnedQuantity = y.ReturnedQuantity,
+                        SubscriptionQuantity = y.SubscriptionQuantity,
+                    }).ToList(),
+                    ClientProducts = x.Client.Products.Select(z => new GetOneResponse.ClientProductItem
+                    {
+                        ProductId= z.ProductId,
+                        ProductTypeId= z.Product.TypeId,
+                        //TODO: Nombre del producto o del tipo??
+                        Name = z.Product.Type.Name,
+                        Price = z.Product.Price,
+                        Stock = z.Stock
                     }).ToList(),
                     PaymentMethods = x.PaymentMethods.Select(y => new GetOneResponse.PaymentMethodItem
                     {
                         Id = y.Id,
-                        Amount= y.Amount,
+                        PaymentMethodId = y.PaymentMethod.Id,
+                        Amount = y.Amount,
                         Name = y.PaymentMethod.Name,
                     }).ToList()
                 }).FirstOrDefaultAsync()
@@ -118,7 +139,7 @@ namespace SoderiaLaNueva_Api.Services
             // Paid products
             foreach (var product in rq.Products)
             {
-                var clientProduct = cart.Client.Products.First(x => x.Product.TypeId == product.ProductTypeId);
+                var clientProduct = cart.Client.Products.First(x => x.ProductId == product.ProductTypeId);
 
                 // Update client stock
                 clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
@@ -145,8 +166,8 @@ namespace SoderiaLaNueva_Api.Services
                 .ToListAsync();
 
             // TODO: Ver que pasa si no tiene abonos, y el mensaje seria abono creo. o seria agregar si re.Subs tiene algo
-            if (availableProducts.Count == 0)
-                return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
+            //if (availableProducts.Count == 0)
+            //    return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
 
             // Subscription products
             foreach (var product in rq.SubscriptionProducts)
@@ -178,27 +199,31 @@ namespace SoderiaLaNueva_Api.Services
                     }
                 }
 
+                // TODO: Checkear con tincho pero creo que esto no iria
+
                 // Update client stock
+                //var clientProduct = cart.Client.Products.First(x => x.Product?.TypeId == product.ProductTypeId);
 
-                // TODO: crear relacion cliente producto cuando creas abonos
-                var clientProduct = cart.Client.Products.First(x => x.Product?.TypeId == product.ProductTypeId);
-
-                clientProduct.Stock += product.Quantity;
+                //clientProduct.Stock += product.Quantity;
 
                 // Update existing products or add new if the type not exists
                 var cartProduct = cart.Products.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+
                 if (cartProduct == null)
                 {
                     cart.Products.Add(new()
                     {
                         ProductTypeId = product.ProductTypeId,
                         SubscriptionQuantity = product.Quantity,
-                        SettedPrice = clientProduct.Product.Price
+                        ReturnedQuantity = product.Quantity,
+                        SettedPrice = 0,
                     });
                 }
                 else
                 {
                     cartProduct.SubscriptionQuantity = product.Quantity;
+                    //TODO: preguntar
+                    cartProduct.ReturnedQuantity += product.Quantity;
                 }
             }
 
@@ -231,17 +256,7 @@ namespace SoderiaLaNueva_Api.Services
             response.Message = Messages.Operations.CartConfirmed();
             response.Data = new ConfirmResponse
             {
-                Id = cart.Id,
-                //Products = cart.Products.Select(p => new ConfirmResponse.ProductItem
-                //{
-                //    ProductTypeId = p.ProductTypeId,
-                //    ProductId = p.ProductTypeId,
-                //    Name = p.Type.Name,
-                //    Price = p.SettedPrice,
-                //    SoldQuantity = p.SoldQuantity,
-                //    ReturnedQuantity = p.ReturnedQuantity,
-                //    SubscriptionQuantity = p.SubscriptionQuantity
-                //}).ToList(),
+                Id = cart.Id
             };
 
             return response;
@@ -258,6 +273,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Cart
                 .Include(x => x.Client)
                     .ThenInclude(x => x.Products)
+                        .ThenInclude(x => x.Product)
                 .Include(x => x.PaymentMethods)
                 .Include(x => x.Products)
                 .FirstAsync(x => x.Id == rq.Id);
@@ -351,6 +367,9 @@ namespace SoderiaLaNueva_Api.Services
                 }
             }
 
+            // Subscription products
+            // TODO
+
             // Payment methods
             if (rq.PaymentMethods.Count > 0)
             {
@@ -390,6 +409,11 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.Operations.CartUpdated();
+            response.Data = new UpdateResponse
+            {
+                RouteId = cart.RouteId
+            };
+
             return response;
         }
 
@@ -407,6 +431,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Cart
                 .Include(x => x.Client)
                     .ThenInclude(x => x.Products)
+                        .ThenInclude(x => x.Product)
                 .Include(x => x.PaymentMethods)
                 .Include(x => x.Products)
                 .FirstAsync(x => x.Id == rq.Id);

@@ -268,6 +268,7 @@ namespace SoderiaLaNueva_Api.Services
             client.Observations = rq.Observations;
             client.DeliveryDay = rq.DeliveryDay;
             client.HasInvoice = rq.HasInvoice;
+            client.Debt = rq.Debt;
             client.InvoiceType = rq.HasInvoice ? rq.InvoiceType : string.Empty;
             client.TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty;
             client.CUIT = rq.HasInvoice ? rq.CUIT : string.Empty;
@@ -313,7 +314,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            if (!response.Attach(await ValidateProducts<UpdateClientProductsResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+            if (rq.Products.Count > 0 && !response.Attach(await ValidateProducts<UpdateClientProductsResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
                 return response;
 
             var products = await _db
@@ -373,9 +374,26 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            // TODO: esto valida otra cosa??
+            // TODO: esto valida otra cosa?? Creo que tendria que validar que no haya una subscripcion que le pases en la rq que no existe en la db, pero lo hace al reves, lo cambio abajo
             //if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
             //    return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
+
+            var subscriptionIds = await _db.Subscription.Select(x => x.Id).ToListAsync();
+
+            //var subscriptionProductIds = await _db.Subscription
+            //    .Include(x => x.Products)
+            //        .ThenInclude(x => x.ProductType)
+            //            .ThenInclude(x => x.Products)
+            //    .Where(x => rq.SubscriptionIds.Contains(x.Id))
+            //    .SelectMany(x => x.Products)
+            //        .Select(x => x.ProductType)
+            //            .SelectMany(x => x.Products)
+            //                .Select(x => x.Id)
+            //    .Distinct()
+            //    .ToListAsync();
+
+            if (rq.SubscriptionIds.Any(x => !subscriptionIds.Contains(x)))
+                return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             if (await _db.Subscription.Where(x => rq.SubscriptionIds.Contains(x.Id)).CountAsync() != rq.SubscriptionIds.Count)
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
@@ -392,6 +410,27 @@ namespace SoderiaLaNueva_Api.Services
                 ClientId = rq.ClientId,
                 SubscriptionId = x
             }).ToList());
+
+            //Todo: hacemos esto??
+
+            //var existingClientProduct = await _db.ClientProduct
+            //    .Where(x => x.ClientId == rq.ClientId)
+            //    .Select(x => x.ProductId)
+            //    .ToListAsync();
+
+            // Add new ClientProduct relations
+            //foreach (var productId in subscriptionProductIds)
+            //{
+            //    if (!existingClientProduct.Contains(productId))
+            //    {
+            //        _db.ClientProduct.Add(new ClientProduct
+            //        {
+            //            ClientId = rq.ClientId,
+            //            ProductId = productId,
+            //            Stock= 0
+            //        });
+            //    }
+            //}
 
             // Save changes
             try

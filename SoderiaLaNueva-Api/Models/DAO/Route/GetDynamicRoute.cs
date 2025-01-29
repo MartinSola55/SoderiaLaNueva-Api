@@ -35,7 +35,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public string? Observations { get; set; } = null!;
                 public List<ClientProductItem> Products { get; set; } = [];
                 public List<ClientSubscriptionProductItem> SubscriptionProducts { get; set; } = [];
-
+                public List<LastProductItem> LastProducts { get; set; } = [];
             }
 
             public class ClientProductItem
@@ -68,6 +68,15 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             {
                 public string Name { get; set; } = null!;
                 public decimal Amount { get; set; }
+            }
+
+            public class LastProductItem
+            {
+                public string Date { get; set; } = null!;
+                public string Name { get; set; } = null!;
+                public int SoldQuantity { get; set; }
+                public int ReturnedQuantity { get; set; }
+
             }
         }
     }

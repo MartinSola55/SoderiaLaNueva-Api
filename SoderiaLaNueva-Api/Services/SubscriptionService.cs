@@ -89,6 +89,7 @@ namespace SoderiaLaNueva_Api.Services
                     SubscriptionProducts = x.Products.Select(p => new GetOneResponse.SubscriptionProductItem
                     {
                         Id = p.ProductType.Id.ToString(),
+                        Description = p.ProductType.Name,
                         Quantity = p.Quantity,
                     }).ToList(),
                 })
@@ -256,7 +257,6 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                 .Include(x => x.Subscription)
                     .ThenInclude(x => x.Products)
-                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
                 .Select(x => new
                 {
                     x.Id,
@@ -270,6 +270,9 @@ namespace SoderiaLaNueva_Api.Services
                     }).ToList()
                 })
                 .ToListAsync();
+
+            // Todo, hacer esto mas eficiente?
+            subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products
             foreach (var clientSub in subscriptionsToRenew)
@@ -337,7 +340,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                 .Include(x => x.Subscription)
                     .ThenInclude(x => x.Products)
-                .Where(x => renewedSubs.Count == 0 || !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                //.Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
                 .Where(x => clients.Contains(x.ClientId))
                 .Select(x => new
                 {
@@ -352,6 +355,9 @@ namespace SoderiaLaNueva_Api.Services
                     }).ToList()
                 })
                 .ToListAsync();
+
+            // Todo, hacer esto mas eficiente?
+            subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products
             foreach (var clientSub in subscriptionsToRenew)
