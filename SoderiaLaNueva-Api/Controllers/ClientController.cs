@@ -39,7 +39,6 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = Policies.Admin)]
         public async Task<GenericResponse<CreateResponse>> Create([FromBody] CreateRequest rq)
         {
             return await _clientService.Create(rq);

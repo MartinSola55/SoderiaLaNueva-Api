@@ -1,11 +1,15 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Route;
+using System;
 using System.Data;
+using System.Globalization;
+using System.Security.Cryptography.Xml;
 
 namespace SoderiaLaNueva_Api.Services
 {
@@ -425,19 +429,61 @@ namespace SoderiaLaNueva_Api.Services
                     x.Name
                 }).ToListAsync();
 
+            var routes = await query.Select(x => new 
+            {
+                x.Id,
+                Dealer = x.Dealer.FullName,
+                TotalCarts = x.Carts.Count,
+                CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
+                TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice),
+                CreatedAt = x.CreatedAt.Date,
+                ClientIds = x.Carts.Select(x => x.ClientId),
+                Products = x.Carts.SelectMany(x => x.Products)
+            }).ToListAsync();
+
+            var createdAtList = routes.Select(y => y.CreatedAt).ToList();
+            var clientIdList = routes.SelectMany(y => y.ClientIds).ToList();
+
+            var transfersTotalCollected = await _db
+                .Transfer
+                .Where(x => createdAtList.Contains(x.CreatedAt.Date))
+                .Where(x => clientIdList.Contains(x.ClientId))
+                .Select(x => new
+                {
+                    x.Amount,
+                    CreatedAt = x.CreatedAt.Date,
+                    x.ClientId
+                })
+                .ToListAsync();
+
+            var productsSold = routes
+              .SelectMany(route => route.Products)
+              .GroupBy(product => product.ProductTypeId)
+              .Select(group => new
+              {
+                  ProductTypeId = group.Key,
+                  TotalQuantity = group.Sum(p => p.SoldQuantity + p.SubscriptionQuantity)
+              })
+              .ToList();
+
             response.Data = new GetDynamicRoutesResponse
             {
-                Routes = await query.Select(x => new GetDynamicRoutesResponse.RouteItem
+                Routes = routes.Select(x => new GetDynamicRoutesResponse.RouteItem
                 {
                     Id = x.Id,
-                    Dealer = x.Dealer.FullName,
-                    TotalCarts = x.Carts.Count,
-                    CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
-                    TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice), // TODO: Sum transfers
-                    SoldProducts = new(),// TODO;
+                    Dealer = x.Dealer,
+                    TotalCarts = x.TotalCarts,
+                    CompletedCarts = x.CompletedCarts,
+                    TotalCollected = x.TotalCollected + transfersTotalCollected
+                        .Where(t => t.CreatedAt == x.CreatedAt && x.ClientIds.Contains(t.ClientId))
+                        .Sum(t => t.Amount), 
+                    SoldProducts = productTypes.Select(x => new GetDynamicRoutesResponse.RouteItem.SoldProductItem
+                    {
+                        Name = x.Name,
+                        Amount = productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id) != null ? productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id).TotalQuantity : 0
+                    }).ToList(),
                     CreatedAt = _auth.IsAdmin() ? null : x.CreatedAt.ToString("dd/MM/yyyy"),
-                })
-                    .ToListAsync()
+                }).ToList()
             };
 
             return response;
