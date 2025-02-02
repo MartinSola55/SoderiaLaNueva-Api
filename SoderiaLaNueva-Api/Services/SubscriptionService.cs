@@ -338,9 +338,7 @@ namespace SoderiaLaNueva_Api.Services
             var subscriptionsToRenew = await _db
                 .ClientSubscription
                 .Include(x => x.Client)
-                .Include(x => x.Subscription)
-                    .ThenInclude(x => x.Products)
-                //.Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Include(x => x.Subscription.Products)
                 .Where(x => clients.Contains(x.ClientId))
                 .Select(x => new
                 {

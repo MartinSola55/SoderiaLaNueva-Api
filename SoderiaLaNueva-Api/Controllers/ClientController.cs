@@ -72,5 +72,13 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _clientService.UpdateClientSubscriptions(rq);
         }
         #endregion
+
+        #region Other methods
+        [HttpGet]
+        public async Task<GenericResponse<GetClientProductsResponse>> GetClientProducts([FromQuery] GetClientProductsRequest rq)
+        {
+            return await _clientService.GetClientProducts(rq);
+        }
+        #endregion
     }
 }

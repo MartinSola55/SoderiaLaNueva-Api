@@ -13,6 +13,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
         public int DeliveryDay { get; set; }
         public decimal TransfersAmount { get; set; }
         public decimal SpentAmount { get; set; }
+        public bool IsClosed { get; set; }
         public List<CartItem> Carts { get; set; } = [];
 
         public class CartItem

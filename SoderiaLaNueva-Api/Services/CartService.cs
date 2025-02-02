@@ -80,12 +80,15 @@ namespace SoderiaLaNueva_Api.Services
                     DeliveryDay = x.Route.DeliveryDay,
                     Dealer = x.Route.Dealer.FullName,
                     Client = x.Client.Name,
-                    SubscriptionProducts = x.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetOneResponse.SubscriptionProductItem
-                    {
-                        TypeId = z.ProductTypeId,
-                        Name = z.Type.Name,
-                        Available = z.AvailableQuantity
-                    }).ToList(),
+                    SubscriptionProducts = x.Client.SubscriptionRenewals
+                        .SelectMany(z => z.RenewalProducts)
+                         .GroupBy(z => new { z.ProductTypeId, z.Type.Name })
+                        .Select(z => new GetOneResponse.SubscriptionProductItem
+                        {
+                            TypeId = z.Key.ProductTypeId,
+                            Name = z.Key.Name,
+                            Available = z.Sum(z => z.AvailableQuantity)
+                        }).ToList(),
                     Products = x.Products.Select(y => new GetOneResponse.ProductItem()
                     {
                         Id = y.Id,
@@ -161,13 +164,13 @@ namespace SoderiaLaNueva_Api.Services
                 .SubscriptionRenewalProduct
                 .Include(x => x.Type)
                 .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
+                // TODO: Cree uno el 31 a la noche y me dio problema
                 .Where(x => x.CreatedAt.Month == DateTime.UtcNow.Month)
                 .Where(x => x.CreatedAt.Year == DateTime.UtcNow.Year)
                 .ToListAsync();
 
-            // TODO: Ver que pasa si no tiene abonos, y el mensaje seria abono creo. o seria agregar si re.Subs tiene algo
-            //if (availableProducts.Count == 0)
-            //    return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
+            if (availableProducts.Count == 0 && rq.SubscriptionProducts.Count != 0)
+                return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
 
             // Subscription products
             foreach (var product in rq.SubscriptionProducts)
@@ -199,13 +202,6 @@ namespace SoderiaLaNueva_Api.Services
                     }
                 }
 
-                // TODO: Checkear con tincho pero creo que esto no iria
-
-                // Update client stock
-                //var clientProduct = cart.Client.Products.First(x => x.Product?.TypeId == product.ProductTypeId);
-
-                //clientProduct.Stock += product.Quantity;
-
                 // Update existing products or add new if the type not exists
                 var cartProduct = cart.Products.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
 
@@ -222,7 +218,6 @@ namespace SoderiaLaNueva_Api.Services
                 else
                 {
                     cartProduct.SubscriptionQuantity = product.Quantity;
-                    //TODO: preguntar
                     cartProduct.ReturnedQuantity += product.Quantity;
                 }
             }
@@ -331,6 +326,11 @@ namespace SoderiaLaNueva_Api.Services
                         .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
 
                     if (clientProduct is null)
+                        //_db.ClientProduct.Add(new ClientProduct
+                        //{
+                        //    ClientId = cart.ClientId,
+                        //    ProductId
+                        //})
                         return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
 
                     var cartProduct = cart
@@ -366,9 +366,6 @@ namespace SoderiaLaNueva_Api.Services
                     cart.Client.Debt -= product.SoldQuantity * clientProduct.Product.Price;
                 }
             }
-
-            // Subscription products
-            // TODO
 
             // Payment methods
             if (rq.PaymentMethods.Count > 0)

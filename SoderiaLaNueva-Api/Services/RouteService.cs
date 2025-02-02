@@ -332,6 +332,7 @@ namespace SoderiaLaNueva_Api.Services
                 DeliveryDay = x.DeliveryDay,
                 TransfersAmount = transfersAmount,
                 SpentAmount = spentAmount,
+                IsClosed = x.IsClosed,
                 Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
