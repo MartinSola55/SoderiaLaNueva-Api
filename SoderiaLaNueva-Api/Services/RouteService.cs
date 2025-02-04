@@ -5,6 +5,7 @@ using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
+using SoderiaLaNueva_Api.Models.DAO.Cart;
 using SoderiaLaNueva_Api.Models.DAO.Route;
 using System;
 using System.Data;
@@ -634,6 +635,85 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        public async Task<GenericResponse> AddClient(AddClientRequest rq)
+        {
+            var response = new GenericResponse();
+
+            if (!response.Attach(await ValidateAddClient(rq)).Success)
+                return response;
+
+            decimal totalDebt = 0;
+
+            var cart = new Cart
+            {
+                ClientId = rq.ClientId,
+                RouteId = rq.RouteId,
+                Products = new List<CartProduct>(),
+                PaymentMethods = new List<CartPaymentMethod>(),
+                Status = CartStatuses.Confirmed
+            };
+
+            _db.Cart.Add(cart);
+
+            var client = await _db.Client
+                .Include(x => x.Products)
+                    .ThenInclude(x => x.Product)
+                .FirstOrDefaultAsync(X => X.Id == rq.ClientId);
+
+            if (client is null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente", true));
+
+            // Paid products
+            foreach (var product in rq.Products)
+            {
+                var clientProduct = client.Products.First(x => x.ProductId == product.ProductTypeId);
+
+                // Update client stock
+                clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
+                // Update debt
+                totalDebt += clientProduct.Product.Price * product.SoldQuantity;
+
+                // Add product to cart
+                cart.Products.Add(new()
+                {
+                    ProductTypeId = product.ProductTypeId,
+                    SoldQuantity = product.SoldQuantity,
+                    ReturnedQuantity = product.ReturnedQuantity,
+                    SubscriptionQuantity = 0,
+                    SettedPrice = clientProduct.Product.Price,
+                });
+            }
+
+            foreach (var method in rq.PaymentMethods)
+            {
+                totalDebt -= method.Amount;
+                cart.PaymentMethods.Add(new()
+                {
+                    PaymentMethodId = method.Id,
+                    Amount = method.Amount,
+                });
+            }
+
+            // Update data
+            cart.Client.Debt += totalDebt;
+
+            // Save changes
+            try
+            {
+                await _db.Database.BeginTransactionAsync();
+                await _db.SaveChangesAsync();
+                await _db.Database.CommitTransactionAsync();
+            }
+            catch (Exception)
+            {
+                await _db.Database.RollbackTransactionAsync();
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.ClientsUpdated();
+            return response;
+        }
+
         #endregion
 
         #region Helpers
@@ -651,6 +731,32 @@ namespace SoderiaLaNueva_Api.Services
             query = query.OrderBy(x => x.Dealer.FullName);
             return query;
         }
+        #endregion
+
+        #region Validations
+
+        private async Task<GenericResponse> ValidateAddClient(AddClientRequest rq)
+        {
+            var response = new GenericResponse();
+            //TODO ver esta validación
+            //if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
+            //    return response.SetError(Messages.Error.Unauthorized());
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && !x.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Bajada", true));
+
+            if (rq.PaymentMethods.Any(x => x.Amount < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("monto"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity < 0 || x.SoldQuantity < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity > int.MaxValue || x.SoldQuantity > int.MaxValue))
+                return response.SetError(Messages.Error.FieldGraterThanMax("cantidad"));
+
+            return response;
+        }
+
         #endregion
     }
 }

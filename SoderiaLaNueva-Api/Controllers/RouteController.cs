@@ -91,6 +91,14 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _routeService.UpdateClients(rq);
         }
 
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse> AddClient([FromBody] AddClientRequest rq)
+        {
+            return await _routeService.AddClient(rq);
+        }
+
+
         #endregion
     }
 }
