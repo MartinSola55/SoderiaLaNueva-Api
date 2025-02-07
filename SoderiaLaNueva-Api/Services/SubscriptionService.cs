@@ -89,6 +89,7 @@ namespace SoderiaLaNueva_Api.Services
                     SubscriptionProducts = x.Products.Select(p => new GetOneResponse.SubscriptionProductItem
                     {
                         Id = p.ProductType.Id.ToString(),
+                        Description = p.ProductType.Name,
                         Quantity = p.Quantity,
                     }).ToList(),
                 })
@@ -154,31 +155,26 @@ namespace SoderiaLaNueva_Api.Services
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
 
+            var nonExistentProducts = subscription.Products.Where(x => !rq.SubscriptionProducts.Select(x => x.ProductTypeId).Contains(x.ProductTypeId)).ToList();
+
+            // Delete non existent products
+            nonExistentProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+
+            // Update existent products
+            foreach (var product in subscription.Products)
+            {
+                var rqProduct = rq.SubscriptionProducts.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+
+                if (rqProduct is not null)
+                {
+                    product.Quantity = rqProduct.Quantity;
+                    product.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+                }
+            }
+
             subscription.Name = rq.Name;
             subscription.Price = rq.Price;
             subscription.UpdatedAt = DateTime.UtcNow.AddHours(-3);
-
-            foreach (var rqProduct in rq.SubscriptionProducts)
-            {
-                var existingProduct = subscription.Products.FirstOrDefault(x => x.ProductTypeId == rqProduct.ProductTypeId);
-
-                if (existingProduct != null && rqProduct.Quantity == 0)
-                {
-                    subscription.Products.Remove(existingProduct);
-                }
-                else if (existingProduct != null && rqProduct.Quantity != 0)
-                {
-                    existingProduct.Quantity = rqProduct.Quantity;
-                }
-                else if (existingProduct == null && rqProduct.Quantity != 0)
-                {
-                    subscription.Products.Add(new SubscriptionProduct
-                    {
-                        ProductTypeId = rqProduct.ProductTypeId,
-                        Quantity = rqProduct.Quantity
-                    });
-                }
-            }
 
             // Validate request
             if (!response.Attach(await ValidateFields<UpdateResponse>(subscription)).Success)
@@ -256,7 +252,6 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Client)
                 .Include(x => x.Subscription)
                     .ThenInclude(x => x.Products)
-                .Where(x => !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
                 .Select(x => new
                 {
                     x.Id,
@@ -270,6 +265,9 @@ namespace SoderiaLaNueva_Api.Services
                     }).ToList()
                 })
                 .ToListAsync();
+
+            // Todo, hacer esto mas eficiente?
+            subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products
             foreach (var clientSub in subscriptionsToRenew)
@@ -335,9 +333,7 @@ namespace SoderiaLaNueva_Api.Services
             var subscriptionsToRenew = await _db
                 .ClientSubscription
                 .Include(x => x.Client)
-                .Include(x => x.Subscription)
-                    .ThenInclude(x => x.Products)
-                .Where(x => renewedSubs.Count == 0 || !renewedSubs.Any(y => y.ClientId == x.ClientId && y.SubscriptionId == x.SubscriptionId))
+                .Include(x => x.Subscription.Products)
                 .Where(x => clients.Contains(x.ClientId))
                 .Select(x => new
                 {
@@ -352,6 +348,9 @@ namespace SoderiaLaNueva_Api.Services
                     }).ToList()
                 })
                 .ToListAsync();
+
+            // Todo, hacer esto mas eficiente?
+            subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products
             foreach (var clientSub in subscriptionsToRenew)
