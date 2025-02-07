@@ -307,8 +307,11 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => !x.IsStatic && x.Id == rq.Id)
                 .AsQueryable();
 
-            // Todo: cambiar y hacer query nueva
-            var cartData = await query
+            //Get transfers and expenses of route 
+            var cartData = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
                 .Select(x => new
                 {
                     x.Carts,
@@ -326,6 +329,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && x.DealerId == cartData.DealerId)
                 .Sum(x => x.Amount);
 
+            //Get route data
             response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
                 Id = x.Id,
@@ -382,11 +386,14 @@ namespace SoderiaLaNueva_Api.Services
                             Price = z.Product.Price,
                             Stock = z.Stock
                         }).ToList(),
-                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicRouteResponse.CartItem.ClientSubscriptionProductItem
+                        SubscriptionProducts = y.Client.SubscriptionRenewals
+                        .SelectMany(z => z.RenewalProducts)
+                        .GroupBy(z => new { z.ProductTypeId, z.Type.Name })
+                        .Select(z => new GetDynamicRouteResponse.CartItem.ClientSubscriptionProductItem
                         {
-                            TypeId = z.ProductTypeId,
-                            Name = z.Type.Name,
-                            Available = z.AvailableQuantity
+                            TypeId = z.Key.ProductTypeId,
+                            Name = z.Key.Name,
+                            Available = z.Sum(z => z.AvailableQuantity)
                         }).ToList(),
                     }
                 }).ToList()

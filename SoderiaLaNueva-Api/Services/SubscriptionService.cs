@@ -155,31 +155,26 @@ namespace SoderiaLaNueva_Api.Services
             if (subscription == null)
                 return response.SetError(Messages.Error.EntityNotFound("Abono"));
 
+            var nonExistentProducts = subscription.Products.Where(x => !rq.SubscriptionProducts.Select(x => x.ProductTypeId).Contains(x.ProductTypeId)).ToList();
+
+            // Delete non existent products
+            nonExistentProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+
+            // Update existent products
+            foreach (var product in subscription.Products)
+            {
+                var rqProduct = rq.SubscriptionProducts.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+
+                if (rqProduct is not null)
+                {
+                    product.Quantity = rqProduct.Quantity;
+                    product.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+                }
+            }
+
             subscription.Name = rq.Name;
             subscription.Price = rq.Price;
             subscription.UpdatedAt = DateTime.UtcNow.AddHours(-3);
-
-            foreach (var rqProduct in rq.SubscriptionProducts)
-            {
-                var existingProduct = subscription.Products.FirstOrDefault(x => x.ProductTypeId == rqProduct.ProductTypeId);
-
-                if (existingProduct != null && rqProduct.Quantity == 0)
-                {
-                    subscription.Products.Remove(existingProduct);
-                }
-                else if (existingProduct != null && rqProduct.Quantity != 0)
-                {
-                    existingProduct.Quantity = rqProduct.Quantity;
-                }
-                else if (existingProduct == null && rqProduct.Quantity != 0)
-                {
-                    subscription.Products.Add(new SubscriptionProduct
-                    {
-                        ProductTypeId = rqProduct.ProductTypeId,
-                        Quantity = rqProduct.Quantity
-                    });
-                }
-            }
 
             // Validate request
             if (!response.Attach(await ValidateFields<UpdateResponse>(subscription)).Success)

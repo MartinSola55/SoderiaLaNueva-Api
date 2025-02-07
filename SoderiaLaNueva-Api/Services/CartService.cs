@@ -82,7 +82,7 @@ namespace SoderiaLaNueva_Api.Services
                     Client = x.Client.Name,
                     SubscriptionProducts = x.Client.SubscriptionRenewals
                         .SelectMany(z => z.RenewalProducts)
-                         .GroupBy(z => new { z.ProductTypeId, z.Type.Name })
+                        .GroupBy(z => new { z.ProductTypeId, z.Type.Name })
                         .Select(z => new GetOneResponse.SubscriptionProductItem
                         {
                             TypeId = z.Key.ProductTypeId,
