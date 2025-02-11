@@ -6,7 +6,6 @@
         {
             // General
             services.AddScoped<TokenService>();
-            services.AddScoped<HomeService>();
             services.AddScoped<AuthService>();
             services.AddScoped<UserService>();
             services.AddScoped<RouteService>();

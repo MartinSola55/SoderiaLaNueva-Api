@@ -7,6 +7,12 @@
     <UserSecretsId>2c774337-9c16-4b07-95f8-830fa31e501b</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Models\DAO\Home\**" />
+    <Content Remove="Models\DAO\Home\**" />
+    <EmbeddedResource Remove="Models\DAO\Home\**" />
+    <None Remove="Models\DAO\Home\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.400.3" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.6" />
@@ -23,8 +29,5 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Models\DAO\Home\" />
   </ItemGroup>
 </Project>
