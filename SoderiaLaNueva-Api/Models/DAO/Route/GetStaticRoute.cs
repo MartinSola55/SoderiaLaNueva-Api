@@ -22,6 +22,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public AddressItem Address { get; set; } = null!;
             public string Phone { get; set; } = null!;
             public string CreatedAt { get; set; } = null!;
+            public string UpdatedAt { get; set; } = null!;
 
             public List<ProductItem> LastProducts { get; set; } = [];
         }

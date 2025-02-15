@@ -1,10 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
+using SoderiaLaNueva_Api.Models.DAO.Cart;
 using SoderiaLaNueva_Api.Models.DAO.Route;
+using System;
 using System.Data;
+using System.Globalization;
+using System.Security.Cryptography.Xml;
 
 namespace SoderiaLaNueva_Api.Services
 {
@@ -74,6 +80,34 @@ namespace SoderiaLaNueva_Api.Services
 
             return response;
         }
+        
+        public async Task<GenericResponse<GetAllDealerStaticResponse>> GetAllDealerStaticRoutes()
+        {
+            var query = _db
+                .Route
+                .Where(x => x.IsStatic && x.DealerId == _token.UserId)
+                .Include(x => x.Carts)
+                .Include(x => x.Dealer)
+                .AsQueryable();
+
+            query = query.OrderBy(x => x.DeliveryDay);
+
+            var response = new GenericResponse<GetAllDealerStaticResponse>
+            {
+                Data = new GetAllDealerStaticResponse
+                {
+                    Routes = await query.Select(x => new GetAllDealerStaticResponse.Item
+                    {
+                        Id = x.Id,
+                        Dealer = x.Dealer.FullName,
+                        TotalCarts = x.Carts.Count,
+                        DeliveryDay = x.DeliveryDay,
+                    }).ToListAsync()
+                }
+            };
+
+            return response;
+        }
 
         public async Task<GenericResponse<GetStaticRouteResponse>> GetStaticRoute(GetStaticRouteRequest rq)
         {
@@ -113,6 +147,7 @@ namespace SoderiaLaNueva_Api.Services
                     },
                     Phone = y.Client.Phone,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    UpdatedAt = y.UpdatedAt.HasValue ? y.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : "",
                     LastProducts = y.Client
                         .Carts
                         .OrderByDescending(z => z.CreatedAt)
@@ -274,12 +309,18 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.SubscriptionRenewals)
                     .ThenInclude(x => x.RenewalProducts)
                     .ThenInclude(x => x.Type)
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                        .ThenInclude(x => x.Carts)
                 .Include(x => x.Dealer)
                 .Where(x => !x.IsStatic && x.Id == rq.Id)
                 .AsQueryable();
 
-            // Todo: cambiar y hacer query nueva
-            var cartData = await query
+            //Get transfers and expenses of route 
+            var cartData = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
                 .Select(x => new
                 {
                     x.Carts,
@@ -297,6 +338,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && x.DealerId == cartData.DealerId)
                 .Sum(x => x.Amount);
 
+            //Get route data
             response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
                 Id = x.Id,
@@ -304,6 +346,7 @@ namespace SoderiaLaNueva_Api.Services
                 DeliveryDay = x.DeliveryDay,
                 TransfersAmount = transfersAmount,
                 SpentAmount = spentAmount,
+                IsClosed = x.IsClosed,
                 Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
@@ -336,6 +379,18 @@ namespace SoderiaLaNueva_Api.Services
                         Phone = y.Client.Phone,
                         Debt = y.Client.Debt,
                         Observations = y.Client.Observations,
+                        LastProducts = y.Client
+                        .Carts
+                        .OrderByDescending(z => z.CreatedAt)
+                        .Take(10)
+                        .SelectMany(z => z.Products)
+                        .Select(z => new GetDynamicRouteResponse.CartItem.LastProductItem
+                        {
+                            Date = z.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                            Name = z.Type.Name,
+                            ReturnedQuantity = z.ReturnedQuantity,
+                            SoldQuantity = z.SoldQuantity
+                        }).ToList(),
                         Products = y.Client.Products.Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
                         {
                             ProductId = z.ProductId,
@@ -343,12 +398,15 @@ namespace SoderiaLaNueva_Api.Services
                             Price = z.Product.Price,
                             Stock = z.Stock
                         }).ToList(),
-                        SubscriptionProducts = y.Client.SubscriptionRenewals.SelectMany(z => z.RenewalProducts).Select(z => new GetDynamicRouteResponse.CartItem.ClientSubscriptionProductItem
+                        SubscriptionProducts = y.Client.SubscriptionRenewals
+                        .SelectMany(z => z.RenewalProducts)
+                        .GroupBy(z => new { z.ProductTypeId, z.Type.Name })
+                        .Select(z => new GetDynamicRouteResponse.CartItem.ClientSubscriptionProductItem
                         {
-                            TypeId = z.ProductTypeId,
-                            Name = z.Type.Name,
-                            Available = z.AvailableQuantity
-                        }).ToList()
+                            TypeId = z.Key.ProductTypeId,
+                            Name = z.Key.Name,
+                            Available = z.Sum(z => z.AvailableQuantity)
+                        }).ToList(),
                     }
                 }).ToList()
             }).FirstAsync();
@@ -358,17 +416,30 @@ namespace SoderiaLaNueva_Api.Services
 
         public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes(GetDynamicRoutesRequest rq)
         {
+            var response = new GenericResponse<GetDynamicRoutesResponse>();
+
+            if (rq.DeliveryDay == null && rq.Date == null)
+            {
+                return response.SetError("Fecha no encontrada.");
+            };
+
             var query = _db
                 .Route
                 .Include(x => x.Carts)
                     .ThenInclude(x => x.Products)
                 .Include(x => x.Dealer)
-                .Where(x => !x.IsStatic && x.CreatedAt.Date == rq.Date.Date)
+                .Where(x => !x.IsStatic)
                 .AsQueryable();
 
-            if (!_auth.IsAdmin())
+            if (!_auth.IsAdmin() && rq.DeliveryDay != null)
             {
-                query = query.Where(x => x.DealerId == _token.UserId);
+                query = query
+                    .Where(x => x.DealerId == _token.UserId && x.DeliveryDay == rq.DeliveryDay.Value)
+                    .OrderByDescending(x => x.CreatedAt);
+            }
+            else if (_auth.IsAdmin() && rq.Date != null)
+            { 
+                query = query.Where(x => x.CreatedAt.Date == rq.Date.Value.Date).OrderBy(x => x.Dealer);
             }
 
             var productTypes = await _db
@@ -379,22 +450,61 @@ namespace SoderiaLaNueva_Api.Services
                     x.Name
                 }).ToListAsync();
 
-            var response = new GenericResponse<GetDynamicRoutesResponse>
+            var routes = await query.Select(x => new 
             {
-                Data = new GetDynamicRoutesResponse
+                x.Id,
+                Dealer = x.Dealer.FullName,
+                TotalCarts = x.Carts.Count,
+                CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
+                TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice),
+                CreatedAt = x.CreatedAt.Date,
+                ClientIds = x.Carts.Select(x => x.ClientId),
+                Products = x.Carts.SelectMany(x => x.Products)
+            }).ToListAsync();
+
+            var createdAtList = routes.Select(y => y.CreatedAt).ToList();
+            var clientIdList = routes.SelectMany(y => y.ClientIds).ToList();
+
+            var transfersTotalCollected = await _db
+                .Transfer
+                .Where(x => createdAtList.Contains(x.CreatedAt.Date))
+                .Where(x => clientIdList.Contains(x.ClientId))
+                .Select(x => new
                 {
-                    Routes = await query.Select(x => new GetDynamicRoutesResponse.RouteItem
+                    x.Amount,
+                    CreatedAt = x.CreatedAt.Date,
+                    x.ClientId
+                })
+                .ToListAsync();
+
+            var productsSold = routes
+              .SelectMany(route => route.Products)
+              .GroupBy(product => product.ProductTypeId)
+              .Select(group => new
+              {
+                  ProductTypeId = group.Key,
+                  TotalQuantity = group.Sum(p => p.SoldQuantity + p.SubscriptionQuantity)
+              })
+              .ToList();
+
+            response.Data = new GetDynamicRoutesResponse
+            {
+                Routes = routes.Select(x => new GetDynamicRoutesResponse.RouteItem
+                {
+                    Id = x.Id,
+                    Dealer = x.Dealer,
+                    TotalCarts = x.TotalCarts,
+                    CompletedCarts = x.CompletedCarts,
+                    TotalCollected = x.TotalCollected + transfersTotalCollected
+                        .Where(t => t.CreatedAt == x.CreatedAt && x.ClientIds.Contains(t.ClientId))
+                        .Sum(t => t.Amount), 
+                    SoldProducts = productTypes.Select(x => new GetDynamicRoutesResponse.RouteItem.SoldProductItem
                     {
-                        Id = x.Id,
-                        Dealer = x.Dealer.FullName,
-                        TotalCarts = x.Carts.Count,
-                        CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
-                        TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice), // TODO: Sum transfers
-                        SoldProducts = new(),// TODO;
-                    })
-                    .OrderBy(x => x.Dealer)
-                    .ToListAsync()
-                }
+                        Name = x.Name,
+                        Amount = productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id) != null ? productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id).TotalQuantity : 0
+                    }).ToList(),
+                    CreatedAt = _auth.IsAdmin() ? null : x.CreatedAt.ToString("dd/MM/yyyy"),
+                }).ToList()
             };
 
             return response;
@@ -544,6 +654,85 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
+        public async Task<GenericResponse> AddClient(AddClientRequest rq)
+        {
+            var response = new GenericResponse();
+
+            if (!response.Attach(await ValidateAddClient(rq)).Success)
+                return response;
+
+            decimal totalDebt = 0;
+
+            var cart = new Cart
+            {
+                ClientId = rq.ClientId,
+                RouteId = rq.RouteId,
+                Products = new List<CartProduct>(),
+                PaymentMethods = new List<CartPaymentMethod>(),
+                Status = CartStatuses.Confirmed
+            };
+
+            _db.Cart.Add(cart);
+
+            var client = await _db.Client
+                .Include(x => x.Products)
+                    .ThenInclude(x => x.Product)
+                .FirstOrDefaultAsync(X => X.Id == rq.ClientId);
+
+            if (client is null)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente", true));
+
+            // Paid products
+            foreach (var product in rq.Products)
+            {
+                var clientProduct = client.Products.First(x => x.ProductId == product.ProductTypeId);
+
+                // Update client stock
+                clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
+                // Update debt
+                totalDebt += clientProduct.Product.Price * product.SoldQuantity;
+
+                // Add product to cart
+                cart.Products.Add(new()
+                {
+                    ProductTypeId = product.ProductTypeId,
+                    SoldQuantity = product.SoldQuantity,
+                    ReturnedQuantity = product.ReturnedQuantity,
+                    SubscriptionQuantity = 0,
+                    SettedPrice = clientProduct.Product.Price,
+                });
+            }
+
+            foreach (var method in rq.PaymentMethods)
+            {
+                totalDebt -= method.Amount;
+                cart.PaymentMethods.Add(new()
+                {
+                    PaymentMethodId = method.Id,
+                    Amount = method.Amount,
+                });
+            }
+
+            // Update data
+            cart.Client.Debt += totalDebt;
+
+            // Save changes
+            try
+            {
+                await _db.Database.BeginTransactionAsync();
+                await _db.SaveChangesAsync();
+                await _db.Database.CommitTransactionAsync();
+            }
+            catch (Exception)
+            {
+                await _db.Database.RollbackTransactionAsync();
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.Operations.ClientsUpdated();
+            return response;
+        }
+
         #endregion
 
         #region Helpers
@@ -561,6 +750,32 @@ namespace SoderiaLaNueva_Api.Services
             query = query.OrderBy(x => x.Dealer.FullName);
             return query;
         }
+        #endregion
+
+        #region Validations
+
+        private async Task<GenericResponse> ValidateAddClient(AddClientRequest rq)
+        {
+            var response = new GenericResponse();
+            //TODO ver esta validación
+            //if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
+            //    return response.SetError(Messages.Error.Unauthorized());
+
+            if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && !x.IsStatic))
+                return response.SetError(Messages.Error.EntityNotFound("Bajada", true));
+
+            if (rq.PaymentMethods.Any(x => x.Amount < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("monto"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity < 0 || x.SoldQuantity < 0))
+                return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
+
+            if (rq.Products.Any(x => x.ReturnedQuantity > int.MaxValue || x.SoldQuantity > int.MaxValue))
+                return response.SetError(Messages.Error.FieldGraterThanMax("cantidad"));
+
+            return response;
+        }
+
         #endregion
     }
 }

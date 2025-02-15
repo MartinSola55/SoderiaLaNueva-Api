@@ -19,7 +19,6 @@
         public string? InvoiceType { get; set; }
         public string? TaxCondition { get; set; }
         public string? CUIT { get; set; }
-
         public List<ProductItem> Products { get; set; } = [];
         public List<string> Subscriptions { get; set; } = [];
         public List<CartsTransfersHistoryItem> SalesHistory { get; set; } = [];
