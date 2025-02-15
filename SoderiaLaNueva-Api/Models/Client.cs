@@ -8,7 +8,7 @@ namespace SoderiaLaNueva_Api.Models
         public int Id { get; set; }
         public string? DealerId { get; set; }
         public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
+        public Address Address { get; set; } = new Address();
         public string Phone { get; set; } = null!;
         public string? Observations { get; set; }
         public decimal Debt { get; set; } = 0;

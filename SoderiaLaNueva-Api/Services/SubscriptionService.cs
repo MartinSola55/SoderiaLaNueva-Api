@@ -395,6 +395,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var clients = await _db
                 .Client
+                .Include(x => x.Address)
                 .Include(x => x.Subscriptions)
                 .Include(x => x.Dealer)
                 .Where(x => x.Subscriptions.Any(p => p.SubscriptionId == rq.SubscriptionId))
@@ -403,7 +404,10 @@ namespace SoderiaLaNueva_Api.Services
                 .Select(x => new GetClientListResponse.ClientItem
                 {
                     Name = x.Name,
-                    Address = x.Address,
+                    Address = new GetClientListResponse.AddressItem
+                    {
+                        NameNumber = x.Address.NameNumber,
+                    },
                     DealerName = x.Dealer.FullName,
                     DeliveryDay = x.DeliveryDay
                 })

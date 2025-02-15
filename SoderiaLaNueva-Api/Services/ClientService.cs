@@ -50,6 +50,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Client
                 .Include(x => x.Dealer)
+                .Include(x => x.Address)
                 .Where(x => x.IsActive)
                 .AsQueryable();
 
@@ -65,7 +66,10 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Id = x.Id,
                         Name = x.Name,
-                        Address = x.Address,
+                        Address = new GetAllResponse.AddressItem
+                        {
+                            NameNumber = x.Address.NameNumber
+                        },
                         Debt = x.Debt,
                         Phone = x.Phone,
                         DeliveryDay = x.DeliveryDay,
@@ -85,6 +89,7 @@ namespace SoderiaLaNueva_Api.Services
 
             var client = await _db
                 .Client
+                .Include(x => x.Address)
                 .Include(x => x.Products)
                     .ThenInclude(x => x.Product)
                         .ThenInclude(x => x.Type)
@@ -94,7 +99,10 @@ namespace SoderiaLaNueva_Api.Services
                     x.Id,
                     x.IsActive,
                     x.Name,
-                    x.Address,
+                    Address = new GetOneResponse.AddressItem
+                    {
+                        NameNumber = x.Address.NameNumber
+                    },
                     x.Phone,
                     x.Debt,
                     x.DeliveryDay,
@@ -155,7 +163,15 @@ namespace SoderiaLaNueva_Api.Services
             {
                 DealerId = rq.DealerId,
                 Name = rq.Name,
-                Address = rq.Address,
+                Address = new Address
+                {
+                    NameNumber = rq.Address.NameNumber,
+                    State = rq.Address.State,
+                    City = rq.Address.City,
+                    Country = rq.Address.Country,
+                    Lat = rq.Address.Lat,
+                    Lon = rq.Address.Lon,
+                },
                 Phone = rq.Phone,
                 Observations = rq.Observations,
                 DeliveryDay = rq.DeliveryDay,
@@ -213,6 +229,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Carts)
                     .ThenInclude(x => x.Route)
                 .Include(x => x.Products)
+                .Include(x => x.Address)
                 .Include(x => x.Transfers)
                 .Include(x => x.Subscriptions)
                 .Include(x => x.SubscriptionRenewals)
@@ -229,6 +246,7 @@ namespace SoderiaLaNueva_Api.Services
             client.Subscriptions.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
             client.Transfers.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
             client.SubscriptionRenewals.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+            client.Address.DeletedAt = DateTime.UtcNow.AddHours(-3);
 
             // Save changes
             try
@@ -253,6 +271,7 @@ namespace SoderiaLaNueva_Api.Services
 
             var client = await _db
                 .Client
+                .Include(x => x.Address)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (client is null)
@@ -263,7 +282,10 @@ namespace SoderiaLaNueva_Api.Services
             // Update client
             client.DealerId = rq.DealerId;
             client.Name = rq.Name;
-            client.Address = rq.Address;
+            client.Address = rq.Address.NameNumber != null ? new Address
+            {
+                NameNumber = rq.Address.NameNumber
+            } : client.Address;
             client.Phone = rq.Phone;
             client.Observations = rq.Observations;
             client.DeliveryDay = rq.DeliveryDay;
@@ -600,10 +622,10 @@ namespace SoderiaLaNueva_Api.Services
         #region Validations
 
         private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
-        {
+    {
             var response = new GenericResponse<T>();
 
-            if (string.IsNullOrEmpty(entity.Name) || string.IsNullOrEmpty(entity.Address) || string.IsNullOrEmpty(entity.Phone))
+            if (string.IsNullOrEmpty(entity.Name) || entity.Address == null || string.IsNullOrEmpty(entity.Phone))
                 return response.SetError(Messages.Error.FieldsRequired());
 
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
@@ -617,7 +639,7 @@ namespace SoderiaLaNueva_Api.Services
 
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
-            || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.ToLower() == entity.Address.ToLower()))))
+            || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.NameNumber.ToLower() == entity.Address.NameNumber.ToLower()))))
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
             }

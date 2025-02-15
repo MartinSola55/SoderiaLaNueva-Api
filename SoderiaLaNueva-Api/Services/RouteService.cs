@@ -34,7 +34,10 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         ClientId = x.Id,
                         Name = x.Name,
-                        Address = x.Address
+                        Address = new GetClientsListResponse.AddressItem
+                        {
+                            NameNumber = x.Address.NameNumber
+                        }
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
@@ -104,7 +107,10 @@ namespace SoderiaLaNueva_Api.Services
                     ClientId = y.ClientId,
                     Name = y.Client.Name,
                     Debt = y.Client.Debt,
-                    Address = y.Client.Address,
+                    Address = new GetStaticRouteResponse.AddressItem
+                    {
+                        NameNumber = y.Client.Address.NameNumber
+                    },
                     Phone = y.Client.Phone,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                     LastProducts = y.Client
@@ -151,7 +157,10 @@ namespace SoderiaLaNueva_Api.Services
                 {
                     ClientId = y.ClientId,
                     Name = y.Client.Name,
-                    Address = y.Client.Address,
+                    Address = new GetStaticRouteClientsResponse.AddressItem
+                    {
+                        NameNumber = y.Client.Address.NameNumber
+                    }
                 }).ToList()
             }).FirstOrDefaultAsync();
 
@@ -320,7 +329,10 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Id = y.ClientId,
                         Name = y.Client.Name,
-                        Address = y.Client.Address,
+                        Address = new GetDynamicRouteResponse.CartItem.AddressItem
+                        {
+                            NameNumber = y.Client.Address.NameNumber
+                        },
                         Phone = y.Client.Phone,
                         Debt = y.Client.Debt,
                         Observations = y.Client.Observations,

@@ -17,7 +17,12 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
         {
             public int ClientId { get; set; }
             public string Name { get; set; } = null!;
-            public string Address { get; set; } = null!;
+            public AddressItem Address { get; set; } = null!;
+        }
+
+        public class AddressItem
+        {
+            public string NameNumber { get; set; } = null!;
         }
     }
 }

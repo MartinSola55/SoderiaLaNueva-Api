@@ -10,7 +10,7 @@
         public int Id { get; set; }
         public string? DealerId { get; set; }
         public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
+        public AddressItem Address { get; set; } = null!;
         public string Phone { get; set; } = null!;
         public string? Observations { get; set; }
         public decimal Debt { get; set; }
@@ -32,7 +32,12 @@
             public int Quantity { get; set; }
         }
 
-        public class CartsTransfersHistoryItem
+        public class AddressItem
+        {
+            public string NameNumber { get; set; } = null!;
+        }
+
+            public class CartsTransfersHistoryItem
         {
             public string Date { get; set; } = null!;
             public string Type { get; set; } = null!;

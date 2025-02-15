@@ -31,11 +31,15 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public string Name { get; set; } = null!;
                 public decimal Debt { get; set; }
                 public string Phone { get; set; } = null!;
-                public string Address { get; set; } = null!;
+                public AddressItem Address { get; set; } = null!;
                 public string? Observations { get; set; } = null!;
                 public List<ClientProductItem> Products { get; set; } = [];
                 public List<ClientSubscriptionProductItem> SubscriptionProducts { get; set; } = [];
+            }
 
+            public class AddressItem
+            {
+                public string NameNumber { get; set; } = null!;
             }
 
             public class ClientProductItem

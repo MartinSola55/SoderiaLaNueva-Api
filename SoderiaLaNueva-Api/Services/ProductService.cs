@@ -269,7 +269,10 @@ namespace SoderiaLaNueva_Api.Services
                 .Select(x => new GetClientListResponse.ClientItem
                 {
                     Name = x.Name,
-                    Address = x.Address,
+                    Address = new GetClientListResponse.AddressItem
+                    {
+                        NameNumber = x.Address.NameNumber
+                    },
                     DealerName = x.Dealer.FullName,
                     DeliveryDay = x.DeliveryDay
                 }).ToListAsync();

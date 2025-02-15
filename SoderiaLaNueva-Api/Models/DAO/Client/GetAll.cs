@@ -16,11 +16,16 @@
         {
             public int Id { get; set; }
             public string Name { get; set; } = null!;
-            public string Address { get; set; } = null!;
+            public AddressItem Address { get; set; } = null!;
             public string Phone{ get; set; } = null!;
             public decimal Debt { get; set; }
             public string DealerName { get; set; } = null!;
             public int? DeliveryDay { get; set; }
+        }
+
+        public class AddressItem
+        {
+            public string NameNumber { get; set; } = null!;
         }
     }
 }

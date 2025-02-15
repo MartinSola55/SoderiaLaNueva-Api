@@ -85,7 +85,10 @@ namespace SoderiaLaNueva_Api.Services
             {
                 Id = transfer.Id,
                 ClientName = client.Name,
-                Address = client.Address,
+                Address = new CreateResponse.AddressItem
+                {
+                    NameNumber = client.Address.NameNumber
+                },
                 Phone = client.Phone,
                 Amount = transfer.Amount,
                 DealerName = client.Dealer.FullName,
