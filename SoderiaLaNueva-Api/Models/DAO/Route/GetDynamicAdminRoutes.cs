@@ -1,13 +1,12 @@
 namespace SoderiaLaNueva_Api.Models.DAO.Route
 
 {
-    public class GetDynamicRoutesRequest
+    public class GetDynamicAdminRoutesRequest
     {
-        public DateTime? Date { get; set; }
-        public int? DeliveryDay { get; set; }
+        public DateTime Date { get; set; }
     }
 
-    public class GetDynamicRoutesResponse
+    public class GetDynamicAdminRoutesResponse
     {
         public List<RouteItem> Routes { get; set; } = [];
 
@@ -18,7 +17,6 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public int TotalCarts { get; set; }
             public int CompletedCarts { get; set; }
             public decimal TotalCollected { get; set; }
-            public string? CreatedAt { get; set; }
             public List<SoldProductItem> SoldProducts { get; set; } = [];
 
             public class SoldProductItem
@@ -26,7 +24,6 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
                 public string Name { get; set; } = null!;
                 public int Amount { get; set; }
             }
-
         }
     }
 }

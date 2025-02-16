@@ -17,7 +17,7 @@ namespace SoderiaLaNueva_Api.Services
         private readonly Token _token = tokenService.GetToken();
 
         #region Combos
-        public async Task<GenericResponse<GenericComboResponse>> GetPaymentStatusesCombo()
+        public async Task<GenericResponse<GenericComboResponse>> GetPaymentMethodsCombo()
         {
             return new GenericResponse<GenericComboResponse>
             {
@@ -102,8 +102,7 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         ProductId= z.ProductId,
                         ProductTypeId= z.Product.TypeId,
-                        //TODO: Nombre del producto o del tipo??
-                        Name = z.Product.Type.Name,
+                        Name = z.Product.Name,
                         Price = z.Product.Price,
                         Stock = z.Stock
                     }).ToList(),
@@ -164,7 +163,6 @@ namespace SoderiaLaNueva_Api.Services
                 .SubscriptionRenewalProduct
                 .Include(x => x.Type)
                 .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
-                // TODO: Cree uno el 31 a la noche y me dio problema
                 .Where(x => x.CreatedAt.Month == DateTime.UtcNow.Month)
                 .Where(x => x.CreatedAt.Year == DateTime.UtcNow.Year)
                 .ToListAsync();

@@ -266,7 +266,6 @@ namespace SoderiaLaNueva_Api.Services
                 })
                 .ToListAsync();
 
-            // Todo, hacer esto mas eficiente?
             subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products
@@ -349,7 +348,6 @@ namespace SoderiaLaNueva_Api.Services
                 })
                 .ToListAsync();
 
-            // Todo, hacer esto mas eficiente?
             subscriptionsToRenew = subscriptionsToRenew.Where(x => !renewedSubs.Any(y => y.ClientId == x.Client.Id && y.SubscriptionId == x.SubscriptionId)).ToList();
 
             // Renew subscriptions and products

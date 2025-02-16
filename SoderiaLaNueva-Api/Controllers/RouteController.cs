@@ -67,9 +67,16 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes([FromBody] GetDynamicRoutesRequest rq)
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse<GetDynamicAdminRoutesResponse>> GetDynamicAdminRoutes([FromBody] GetDynamicAdminRoutesRequest rq)
         {
-            return await _routeService.GetDynamicRoutes(rq);
+            return await _routeService.GetDynamicAdminRoutes(rq);
+        }
+        
+        [HttpPost]
+        public async Task<GenericResponse<GetDynamicDealerRoutesResponse>> GetDynamicDealerRoutes([FromBody] GetDynamicDealerRoutesRequest rq)
+        {
+            return await _routeService.GetDynamicDealerRoutes(rq);
         }
 
         [HttpPost]

@@ -401,11 +401,7 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            // TODO: esto valida otra cosa?? Creo que tendria que validar que no haya una subscripcion que le pases en la rq que no existe en la db, pero lo hace al reves y además está abajo
-            //if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
-            //    return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
-
-            if (await _db.Subscription.Where(x => rq.SubscriptionIds.Contains(x.Id)).CountAsync() != rq.SubscriptionIds.Count)
+            if (!await _db.Subscription.AnyAsync(x => rq.SubscriptionIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
@@ -447,7 +443,6 @@ namespace SoderiaLaNueva_Api.Services
                     _db.ClientProduct.Add(new ClientProduct
                     {
                         ClientId = rq.ClientId,
-                        // TODO: Con que prdoucto creo la relación? Ahora lo hago con el ultimo creado de ese tipo
                         ProductId = (await _db.Product.OrderByDescending(x => x.CreatedAt).FirstAsync(x => x.TypeId == subscriptionProduct.ProductTypeId)).Id,
                         Stock = subscriptionProduct.TotalAvailable
                     });
