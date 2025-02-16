@@ -468,6 +468,54 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
+        #region Search
+        public async Task<GenericResponse<GetAllResponse>> Search(SearchRequest rq)
+        {
+            var response = new GenericResponse<GetAllResponse>();
+
+            var query = _db
+                .Client
+                .Include(x => x.Dealer)
+                .Where(x => x.IsActive)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(rq.Name) && string.IsNullOrEmpty(rq.Code))
+                query = query.Where(x => x.Name.Contains(rq.Name));
+
+            if (string.IsNullOrEmpty(rq.Name) && !string.IsNullOrEmpty(rq.Code))
+                query = query.Where(x => x.Id.ToString() == rq.Code);
+
+            var clients = await query.ToListAsync();
+
+            if (clients.Count == 0)
+                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
+
+            try
+            {
+                response.Data = new GetAllResponse
+                {
+                    Clients = await query.Select(x => new GetAllResponse.Item
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Address = x.Address,
+                        Debt = x.Debt,
+                        Phone = x.Phone,
+                        DeliveryDay = x.DeliveryDay,
+                        DealerName = x.Dealer.FullName
+                    }).ToListAsync()
+                };
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            return response;
+        }
+        #endregion
+
         #region Private
         private async Task AssignClientRoute(Client client)
         {
