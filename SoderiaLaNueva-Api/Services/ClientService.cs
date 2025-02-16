@@ -5,12 +5,71 @@ using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
 using System.Data;
+using System.Linq;
 
 namespace SoderiaLaNueva_Api.Services
 {
     public class ClientService(APIContext context)
     {
         private readonly APIContext _db = context;
+
+        #region Combos
+        public GenericResponse<GenericComboResponse> GetComboTaxConditions()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = TaxCondition.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        StringId = x,
+                        Description = x
+                    }).ToList()
+                }
+            };
+        }
+
+        public GenericResponse<GenericComboResponse> GetComboInvoiceTypes()
+        {
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = InvoiceTypes.GetAll().Select(x => new GenericComboResponse.Item
+                    {
+                        StringId = x,
+                        Description = x
+                    }).ToList()
+                }
+            };
+        }
+        #endregion
+
+        #region Other Methods
+        public async Task<GenericResponse<GetClientProductsResponse>> GetClientProducts(GetClientProductsRequest rq)
+        {
+            var query = _db
+                .ClientProduct
+                .Include(x => x.Product)
+                .Where(x => x.ClientId == rq.Id)
+                .AsQueryable();
+
+            var response = new GenericResponse<GetClientProductsResponse>
+            {
+                Data = new GetClientProductsResponse
+                {
+                    Products = await query.Select(x => new GetClientProductsResponse.ProductItem
+                    {
+                        ProductId = x.ProductId,
+                        Name = x.Product.Name,
+                        Price = x.Product.Price,
+
+                    }).ToListAsync()
+                }
+            };
+            return response;
+        }
+        #endregion
 
         #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
@@ -54,6 +113,8 @@ namespace SoderiaLaNueva_Api.Services
             var client = await _db
                 .Client
                 .Include(x => x.Products)
+                    .ThenInclude(x => x.Product)
+                        .ThenInclude(x => x.Type)
                 .Include(x => x.Subscriptions)
                 .Select(x => new
                 {
@@ -70,8 +131,13 @@ namespace SoderiaLaNueva_Api.Services
                     x.TaxCondition,
                     x.CUIT,
                     x.Observations,
-                    Products = x.Products.Select(x => x.Id).ToList(),
-                    Subscriptions = x.Subscriptions.Select(x => x.Id).ToList()
+                    Products = x.Products.Select(x => new GetOneResponse.ProductItem 
+                    {
+                        Id = x.Product.Id,
+                        Name = $"{x.Product.Type.Name} - ${x.Product.Price}",
+                        Quantity = x.Stock
+                    }).ToList(),
+                    Subscriptions = x.Subscriptions.Select(x => x.Subscription.Id.ToString()).ToList()
                 })
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
@@ -134,7 +200,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            if (!response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+            if (rq.Products.Count > 0 && !response.Attach(await ValidateProducts<CreateResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
                 return response;
 
             client.Products = rq.Products.Select(x => new ClientProduct()
@@ -143,13 +209,16 @@ namespace SoderiaLaNueva_Api.Services
                 Stock = x.Quantity
             }).ToList();
 
-            // Assign or create route
-            await AssignClientRoute(client);
-
             // Save changes
             _db.Client.Add(client);
+
             try
             {
+                await _db.SaveChangesAsync();
+
+                // Assign or create route, we do it here to have new Client's Id
+                await AssignClientRoute(client);
+
                 await _db.SaveChangesAsync();
             }
             catch (Exception)
@@ -226,6 +295,7 @@ namespace SoderiaLaNueva_Api.Services
             client.Observations = rq.Observations;
             client.DeliveryDay = rq.DeliveryDay;
             client.HasInvoice = rq.HasInvoice;
+            client.Debt = rq.Debt;
             client.InvoiceType = rq.HasInvoice ? rq.InvoiceType : string.Empty;
             client.TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty;
             client.CUIT = rq.HasInvoice ? rq.CUIT : string.Empty;
@@ -271,7 +341,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterOrEqualThanZero("cantidad"));
 
-            if (!response.Attach(await ValidateProducts<UpdateClientProductsResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
+            if (rq.Products.Count > 0 && !response.Attach(await ValidateProducts<UpdateClientProductsResponse>(rq.Products.Select(x => x.ProductId).ToList())).Success)
                 return response;
 
             var products = await _db
@@ -331,7 +401,7 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
+            if (!await _db.Subscription.AnyAsync(x => rq.SubscriptionIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
@@ -346,6 +416,42 @@ namespace SoderiaLaNueva_Api.Services
                 ClientId = rq.ClientId,
                 SubscriptionId = x
             }).ToList());
+
+            var clientProducts = await _db.ClientProduct
+                .Where(x => x.ClientId == rq.ClientId)
+                .Include(x => x.Product)
+                .ToListAsync();
+
+            var subscriptionProducts = await _db.Subscription
+                .Include(x => x.Products)
+                .Where(x => rq.SubscriptionIds.Contains(x.Id))
+                .SelectMany(x => x.Products)
+                .GroupBy(x => x.ProductTypeId)
+                .Select(g => new { 
+                    ProductTypeId = g.Key,
+                    TotalAvailable = g.Sum(p => p.Quantity) 
+                })
+                .ToListAsync();
+
+            // Add new ClientProduct relations
+            foreach (var subscriptionProduct in subscriptionProducts)
+            {
+                var existingClientProduct = clientProducts.FirstOrDefault(x => x.Product.TypeId == subscriptionProduct.ProductTypeId);
+
+                if (existingClientProduct == null)
+                {
+                    _db.ClientProduct.Add(new ClientProduct
+                    {
+                        ClientId = rq.ClientId,
+                        ProductId = (await _db.Product.OrderByDescending(x => x.CreatedAt).FirstAsync(x => x.TypeId == subscriptionProduct.ProductTypeId)).Id,
+                        Stock = subscriptionProduct.TotalAvailable
+                    });
+                }
+                else
+                {
+                    existingClientProduct.Stock += subscriptionProduct.TotalAvailable;
+                }
+            }
 
             // Save changes
             try
@@ -417,6 +523,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 var route = await _db
                     .Route
+                    .Include(x => x.Carts)
                     .FirstOrDefaultAsync(x => x.IsStatic && x.DealerId == client.DealerId && x.DeliveryDay == client.DeliveryDay);
 
                 var newCart = new Cart
@@ -610,6 +717,12 @@ namespace SoderiaLaNueva_Api.Services
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
                 return response.SetError(Messages.Error.FieldsRequired());
 
+            if (!string.IsNullOrEmpty(entity.InvoiceType) && !InvoiceTypes.Validate(entity.InvoiceType))
+                return response.SetError(Messages.Error.InvalidField("tipo de factura"));
+
+            if (!string.IsNullOrEmpty(entity.TaxCondition) && !TaxCondition.Validate(entity.TaxCondition))
+                return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
+
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
             || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.ToLower() == entity.Address.ToLower()))))
@@ -660,6 +773,9 @@ namespace SoderiaLaNueva_Api.Services
             // Filter clients that are not assigned to a route
             if (rq.Unassigned)
                 query = query.Where(x => string.IsNullOrEmpty(x.DealerId) && x.DeliveryDay == null);
+
+            if (rq.FilterClients != null && rq.FilterClients.Count > 0)
+                query = query.Where(x => !rq.FilterClients.Contains(x.Id));
 
             return query;
         }

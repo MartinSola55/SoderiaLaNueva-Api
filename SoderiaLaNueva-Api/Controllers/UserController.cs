@@ -17,6 +17,12 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _userService.GetComboRoles();
         }
 
+        [HttpGet]
+        public async Task<GenericResponse<GenericComboResponse>> GetComboDealers()
+        {
+            return await _userService.GetComboDealers();
+        }
+
         [HttpPost]
         public async Task<GenericResponse> UpdatePassword([FromBody] UpdatePasswordRequest rq)
         {

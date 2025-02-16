@@ -19,9 +19,21 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpGet]
+        public async Task<GenericResponse<GetAllDealerStaticResponse>> GetAllDealerStaticRoutes()
+        {
+            return await _routeService.GetAllDealerStaticRoutes();
+        }
+
+        [HttpGet]
         public async Task<GenericResponse<GetStaticRouteResponse>> GetStaticRoute([FromQuery] GetStaticRouteRequest rq)
         {
             return await _routeService.GetStaticRoute(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<GetStaticRouteClientsResponse>> GetStaticRouteClients([FromQuery] GetStaticRouteClientsRequest rq)
+        {
+            return await _routeService.GetStaticRouteClients(rq);
         }
 
         [HttpPost]
@@ -33,9 +45,16 @@ namespace SoderiaLaNueva_Api.Controllers
 
         [HttpPost]
         [Authorize(Policy = Policies.Admin)]
-        public async Task<GenericResponse> DeleteStaticRoute([FromBody] DeleteStaticRequest rq)
+        public async Task<GenericResponse> Delete([FromBody] DeleteStaticRequest rq)
         {
             return await _routeService.DeleteStaticRoute(rq);
+        }
+
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse<GetClientsListResponse>> GetClientsList([FromBody] GetClientsListRequest rq)
+        {
+            return await _routeService.GetClientsList(rq);
         }
 
         #endregion
@@ -47,10 +66,17 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _routeService.GetDynamicRoute(rq);
         }
 
-        [HttpGet]
-        public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes([FromQuery] GetDynamicRoutesRequest rq)
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse<GetDynamicAdminRoutesResponse>> GetDynamicAdminRoutes([FromBody] GetDynamicAdminRoutesRequest rq)
         {
-            return await _routeService.GetDynamicRoutes(rq);
+            return await _routeService.GetDynamicAdminRoutes(rq);
+        }
+        
+        [HttpPost]
+        public async Task<GenericResponse<GetDynamicDealerRoutesResponse>> GetDynamicDealerRoutes([FromBody] GetDynamicDealerRoutesRequest rq)
+        {
+            return await _routeService.GetDynamicDealerRoutes(rq);
         }
 
         [HttpPost]
@@ -71,6 +97,14 @@ namespace SoderiaLaNueva_Api.Controllers
         {
             return await _routeService.UpdateClients(rq);
         }
+
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse> AddClient([FromBody] AddClientRequest rq)
+        {
+            return await _routeService.AddClient(rq);
+        }
+
 
         #endregion
     }

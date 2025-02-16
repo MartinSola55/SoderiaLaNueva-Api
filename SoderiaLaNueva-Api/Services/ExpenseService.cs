@@ -8,10 +8,9 @@ using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class ExpenseService(APIContext context, TokenService tokenService)
+    public class ExpenseService(APIContext context)
     {
         private readonly APIContext _db = context;
-        private readonly Token _token = tokenService.GetToken();
 
         #region Methods
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
@@ -158,13 +157,36 @@ namespace SoderiaLaNueva_Api.Services
         }
         #endregion
 
+        #region Stats
+        public async Task<GenericResponse<GetExpensesByDateResponse>> GetExpensesByDate(GetExpensesByDateRequest rq)
+        {
+            return new GenericResponse<GetExpensesByDateResponse>
+            {
+                Data = new GetExpensesByDateResponse
+                {
+                    Expenses = await _db
+                    .Expense
+                    .Include(x => x.Dealer)
+                    .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                    .Select(x => new GetExpensesByDateResponse.ExpenseItem
+                    {
+                        DealerName = x.Dealer.FullName,
+                        Description = x.Description,
+                        Amount = x.Amount
+                    })
+                    .ToListAsync()
+                }
+            };
+        }
+        #endregion
+
         #region Helpers
         private static IQueryable<Expense> FilterQuery(IQueryable<Expense> query, GetAllRequest rq)
         {
             if (rq.DateFrom <= rq.DateTo)
             {
                 var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom, DateTimeKind.Utc).Date;
-                var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date;
+                var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date.AddDays(1);
 
                 query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
             }

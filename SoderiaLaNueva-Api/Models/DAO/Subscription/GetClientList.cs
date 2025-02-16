@@ -7,7 +7,7 @@
 
     public class GetClientListResponse
     {
-        public List<ClientItem> Clients = [];
+        public List<ClientItem> Clients { get; set; } = [];
 
         public class ClientItem
         {

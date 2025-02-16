@@ -56,5 +56,15 @@
             };
             return this;
         }
+
+        public GenericResponse Attach(GenericResponse response)
+        {
+            if (Error == null && response.Error != null)
+            {
+                Error = response.Error;
+            }
+
+            return this;
+        }
     }
 }

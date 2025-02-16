@@ -11,6 +11,20 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly ClientService _clientService = clientService;
 
+        #region Combos
+        [HttpGet]
+        public GenericResponse<GenericComboResponse> GetComboTaxConditions()
+        {
+            return _clientService.GetComboTaxConditions();
+        }
+
+        [HttpGet]
+        public GenericResponse<GenericComboResponse> GetComboInvoiceTypes()
+        {
+            return _clientService.GetComboInvoiceTypes();
+        }
+        #endregion
+
         #region CRUD
         [HttpPost]
         public async Task<GenericResponse<GetAllResponse>> GetAll([FromBody] GetAllRequest rq)
@@ -25,7 +39,6 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = Policies.Admin)]
         public async Task<GenericResponse<CreateResponse>> Create([FromBody] CreateRequest rq)
         {
             return await _clientService.Create(rq);
@@ -65,6 +78,14 @@ namespace SoderiaLaNueva_Api.Controllers
         public async Task<GenericResponse<GetAllResponse>> Search([FromBody] SearchRequest rq)
         {
             return await _clientService.Search(rq);
+        }
+        #endregion
+
+        #region Other methods
+        [HttpGet]
+        public async Task<GenericResponse<GetClientProductsResponse>> GetClientProducts([FromQuery] GetClientProductsRequest rq)
+        {
+            return await _clientService.GetClientProducts(rq);
         }
         #endregion
     }

@@ -7,7 +7,6 @@ using SoderiaLaNueva_Api.Models.Constants;
 
 namespace SoderiaLaNueva_Api.Controllers
 {
-    [Authorize(Policy = Policies.Admin)]
     public class ExpenseController(ExpenseService expenseService) : BaseController
     {
         private readonly ExpenseService _expenseService = expenseService;
@@ -35,6 +34,15 @@ namespace SoderiaLaNueva_Api.Controllers
         public async Task<GenericResponse> Delete([FromBody] DeleteRequest rq)
         {
             return await _expenseService.Delete(rq);
+        }
+        #endregion
+
+        #region Stats
+        [HttpGet]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse<GetExpensesByDateResponse>> GetExpensesByDate([FromQuery] GetExpensesByDateRequest rq)
+        {
+            return await _expenseService.GetExpensesByDate(rq);
         }
         #endregion
     }

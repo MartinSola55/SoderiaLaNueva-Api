@@ -24,7 +24,7 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await _db.ProductType
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id.ToString(),
+                        Id = x.Id,
                         Description = x.Name
                     })
                     .OrderBy(x => x.Description)
@@ -36,18 +36,21 @@ namespace SoderiaLaNueva_Api.Services
 
         public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
         {
+            var items = await _db.Product
+                .Select(x => new GenericComboResponse.Item
+                {
+                    Id = x.Id,
+                    Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
+                })
+                .ToListAsync();
+
             return new GenericResponse<GenericComboResponse>
             {
                 Data = new GenericComboResponse
                 {
-                    Items = await _db.Product
-                    .Select(x => new GenericComboResponse.Item
-                    {
-                        Id = x.Id.ToString(),
-                        Description = $"{x.Name} - {Formatting.FormatCurrency(x.Price)}"
-                    })
+                    Items = items
                     .OrderBy(x => x.Description)
-                    .ToListAsync()
+                    .ToList()
                 }
             };
         }
@@ -256,29 +259,77 @@ namespace SoderiaLaNueva_Api.Services
         #region Search
         public async Task<GenericResponse<GetClientListResponse>> GetClientList(GetClientListRequest rq)
         {
-            var query = _db
+            var clients = await _db
                 .Client
                 .Include(x => x.Products)
                 .Include(x => x.Dealer)
-                .Where(x => x.Products.Any(p => p.Id == rq.ProductId))
+                .Where(x => x.Products.Any(p => p.ProductId == rq.ProductId))
+                .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
-                .AsQueryable();
+                .Select(x => new GetClientListResponse.ClientItem
+                {
+                    Name = x.Name,
+                    Address = x.Address,
+                    DealerName = x.Dealer.FullName,
+                    DeliveryDay = x.DeliveryDay
+                }).ToListAsync();
 
             return new GenericResponse<GetClientListResponse>
             {
                 Data = new GetClientListResponse
                 {
-                    Clients = await query
-                    .Select(x => new GetClientListResponse.ClientItem
-                    {
-                        Name = x.Name,
-                        Address = x.Address,
-                        DealerName = x.Dealer.FullName,
-                        DeliveryDay = x.DeliveryDay
-                    })
-                    .ToListAsync()
+                    Clients = clients
                 }
             };
+        }
+
+        public async Task<GenericResponse<GetSoldProductsByDateResponse>> GetSoldProductsByDate(GetSoldProductsByDateRequest rq)
+        {
+            var response = new GenericResponse<GetSoldProductsByDateResponse>();
+            var cartProducts = await _db
+                .CartProduct
+                .Include(x => x.Type)
+                .Where(x => x.Cart.CreatedAt.Date == rq.Date.Date)
+                .Select(x => new
+                {
+                    x.ProductTypeId,
+                    x.Type.Name,
+                    x.SoldQuantity,
+                    x.SubscriptionQuantity,
+                    x.ReturnedQuantity
+                })
+                .ToListAsync();
+
+            var productTypes = await _db
+                .ProductType
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+
+            var soldProducts = new List<GetSoldProductsByDateResponse.ProductItem>();
+
+            foreach (var type in productTypes)
+            {
+                var productsByType = cartProducts.Where(x => x.ProductTypeId == type.Id).Sum(x => x.SoldQuantity);
+                var subsProductsByType = cartProducts.Where(x => x.ProductTypeId == type.Id).Sum(x => x.SubscriptionQuantity);
+                var returnedProductsByType = cartProducts.Where(x => x.ProductTypeId == type.Id).Sum(x => x.ReturnedQuantity);
+
+                var soldProduct = new GetSoldProductsByDateResponse.ProductItem()
+                {
+                    Name = type.Name,
+                    Sold = productsByType,
+                    Returned = returnedProductsByType,
+                };
+                soldProduct.Sold += subsProductsByType;
+
+                soldProducts.Add(soldProduct);
+            }
+
+            response.Data = new GetSoldProductsByDateResponse
+            {
+                Products = soldProducts
+            };
+
+            return response;
         }
         #endregion
 
@@ -312,6 +363,7 @@ namespace SoderiaLaNueva_Api.Services
             return column switch
             {
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
+                "name" => direction == "asc" ? query.OrderBy(x => x.Name) : query.OrderByDescending(x => x.Name),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };
         }

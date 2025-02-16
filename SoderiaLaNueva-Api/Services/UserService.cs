@@ -27,8 +27,33 @@ namespace SoderiaLaNueva_Api.Services
                     Items = await _db.Roles
                     .Select(x => new GenericComboResponse.Item
                     {
-                        Id = x.Id,
+                        StringId = x.Id,
                         Description = x.Name
+                    })
+                    .ToListAsync()
+                }
+            };
+            return response;
+        }
+
+        public async Task<GenericResponse<GenericComboResponse>> GetComboDealers()
+        {
+            var query = _db
+                .User
+                .Include(x => x.Role)
+                .Where(x => x.Role.NormalizedName == "DEALER") // Don't like but it's the easiest way
+                .OrderBy(x => x.FullName)
+                .AsQueryable();
+
+            var response = new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = await query
+                    .Select(x => new GenericComboResponse.Item
+                    {
+                        StringId = x.Id,
+                        Description = x.FullName
                     })
                     .ToListAsync()
                 }
@@ -96,7 +121,7 @@ namespace SoderiaLaNueva_Api.Services
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
                 CreatedAt = user.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                Role = user.Role.Name
+                Role = user.Role.Id
             };
 
             return response;

@@ -9,7 +9,22 @@ namespace SoderiaLaNueva_Api.Controllers
     {
         private readonly CartService _cartService = cartService;
 
+        #region Combos
+
+        [HttpGet]
+        public async Task<GenericResponse<GenericComboResponse>> GetPaymentMethodsCombo()
+        {
+            return await _cartService.GetPaymentMethodsCombo();
+        }
+        #endregion
+
         #region Basic methods
+        [HttpGet]
+        public GenericResponse<GetFormDataResponse> GetFormData()
+        {
+            return _cartService.GetFormData();
+        }
+
         [HttpGet]
         public async Task<GenericResponse<GetOneResponse>> GetOne([FromQuery] GetOneRequest rq)
         {

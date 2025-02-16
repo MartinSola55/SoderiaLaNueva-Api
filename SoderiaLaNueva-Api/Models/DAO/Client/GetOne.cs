@@ -19,11 +19,17 @@
         public string? InvoiceType { get; set; }
         public string? TaxCondition { get; set; }
         public string? CUIT { get; set; }
-
-        public List<int> Products { get; set; } = [];
-        public List<int> Subscriptions { get; set; } = [];
+        public List<ProductItem> Products { get; set; } = [];
+        public List<string> Subscriptions { get; set; } = [];
         public List<CartsTransfersHistoryItem> SalesHistory { get; set; } = [];
         public List<ProductHistoryItem> ProductHistory { get; set; } = [];
+
+        public class ProductItem
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = null!;
+            public int Quantity { get; set; }
+        }
 
         public class CartsTransfersHistoryItem
         {

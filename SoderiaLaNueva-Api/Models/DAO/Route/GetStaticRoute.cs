@@ -15,12 +15,14 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
 
         public class CartItem
         {
+            public int Id { get; set; }
             public int ClientId { get; set; }
             public string Name { get; set; } = null!;
             public decimal Debt { get; set; }
             public string Address { get; set; } = null!;
             public string Phone { get; set; } = null!;
             public string CreatedAt { get; set; } = null!;
+            public string UpdatedAt { get; set; } = null!;
 
             public List<ProductItem> LastProducts { get; set; } = [];
         }
