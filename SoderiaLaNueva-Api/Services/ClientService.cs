@@ -480,16 +480,10 @@ namespace SoderiaLaNueva_Api.Services
                 .AsNoTracking()
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(rq.Name) && string.IsNullOrEmpty(rq.Code))
+            if (rq.ClientId.HasValue)
+                query = query.Where(x => x.Id == rq.ClientId.Value);
+            else if (!string.IsNullOrEmpty(rq.Name))
                 query = query.Where(x => x.Name.Contains(rq.Name));
-
-            if (string.IsNullOrEmpty(rq.Name) && !string.IsNullOrEmpty(rq.Code))
-                query = query.Where(x => x.Id.ToString() == rq.Code);
-
-            var clients = await query.ToListAsync();
-
-            if (clients.Count == 0)
-                return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
             try
             {
