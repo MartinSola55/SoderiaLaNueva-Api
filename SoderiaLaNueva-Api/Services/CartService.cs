@@ -94,6 +94,7 @@ namespace SoderiaLaNueva_Api.Services
                         Id = y.Id,
                         ProductTypeId = y.ProductTypeId,
                         Name = y.Type.Name,
+                        Price = y.SettedPrice,
                         SoldQuantity = y.SoldQuantity,
                         ReturnedQuantity = y.ReturnedQuantity,
                         SubscriptionQuantity = y.SubscriptionQuantity,

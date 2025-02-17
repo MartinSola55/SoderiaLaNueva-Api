@@ -24,6 +24,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Cart
             public int Id { get; set; }
             public int ProductTypeId { get; set; }
             public string Name { get; set; } = null!;
+            public decimal Price { get; set; }
             public int SoldQuantity { get; set; }
             public int ReturnedQuantity { get; set; }
             public int SubscriptionQuantity { get; set; }
