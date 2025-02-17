@@ -483,7 +483,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.ClientId.HasValue)
                 query = query.Where(x => x.Id == rq.ClientId.Value);
             else if (!string.IsNullOrEmpty(rq.Name))
-                query = query.Where(x => x.Name.Contains(rq.Name));
+                query = query.Where(x => x.Name.ToLower().Contains(rq.Name.ToLower()));
 
             try
             {
