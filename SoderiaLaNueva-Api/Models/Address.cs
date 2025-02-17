@@ -6,7 +6,6 @@ namespace SoderiaLaNueva_Api.Models
     {
         [Key]
         public int Id { get; set; }
-        public int ClientId { get; set; }
         public string NameNumber { get; set; } = null!;
         public string State { get; set; } = null!;
         public string City { get; set; } = null!;
@@ -17,6 +16,5 @@ namespace SoderiaLaNueva_Api.Models
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
 
-        public virtual Client Client { get; set; } = null!;
     }
 }

@@ -8,7 +8,7 @@ namespace SoderiaLaNueva_Api.Models
         public int Id { get; set; }
         public string? DealerId { get; set; }
         public string Name { get; set; } = null!;
-        public Address Address { get; set; } = new Address();
+        public int AddressId { get; set; }
         public string Phone { get; set; } = null!;
         public string? Observations { get; set; }
         public decimal Debt { get; set; } = 0;
@@ -25,6 +25,7 @@ namespace SoderiaLaNueva_Api.Models
 
         // Navigation properties
         public virtual ApiUser Dealer { get; set; } = null!;
+        public virtual Address Address { get; set; } = null!;
         public virtual List<ClientSubscription> Subscriptions { get; set; } = null!;
         public virtual List<SubscriptionRenewal> SubscriptionRenewals { get; set; } = null!;
         public virtual List<ClientProduct> Products { get; set; } = null!;

@@ -131,6 +131,7 @@ namespace SoderiaLaNueva_Api.Services
                     x.Name,
                     Address = new GetOneResponse.AddressItem
                     {
+                        Id = x.Id,
                         NameNumber = x.Address.NameNumber,
                         State = x.Address.State,
                         City = x.Address.City,
@@ -317,15 +318,6 @@ namespace SoderiaLaNueva_Api.Services
             // Update client
             client.DealerId = rq.DealerId;
             client.Name = rq.Name;
-            client.Address = rq.Address.NameNumber != null ? new Address
-            {
-                NameNumber = rq.Address.NameNumber,
-                State = rq.Address.State,
-                City = rq.Address.City,
-                Country = rq.Address.Country,
-                Lat = rq.Address.Lat,
-                Lon = rq.Address.Lon,
-            } : client.Address;
             client.Phone = rq.Phone;
             client.Observations = rq.Observations;
             client.DeliveryDay = rq.DeliveryDay;
@@ -335,6 +327,15 @@ namespace SoderiaLaNueva_Api.Services
             client.TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty;
             client.CUIT = rq.HasInvoice ? rq.CUIT : string.Empty;
             client.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+
+            // Address data
+            client.Address.NameNumber = rq.Address.NameNumber;
+            client.Address.State = rq.Address.State;
+            client.Address.City = rq.Address.City;
+            client.Address.Country = rq.Address.Country;
+            client.Address.Lat = rq.Address.Lat;
+            client.Address.Lon = rq.Address.Lon;
+            client.Address.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
             // Validate request
             if (!response.Attach(await ValidateFields<UpdateClientDataResponse>(client)).Success)
@@ -528,7 +529,13 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Id = x.Id,
                         Name = x.Name,
-                        Address = x.Address,
+                        Address = new GetAllResponse.AddressItem()
+                        {
+                            NameNumber = x.Address.NameNumber,
+                            City = x.Address.City,
+                            State = x.Address.State,
+                            Country = x.Address.Country
+                        },
                         Debt = x.Debt,
                         Phone = x.Phone,
                         DeliveryDay = x.DeliveryDay,

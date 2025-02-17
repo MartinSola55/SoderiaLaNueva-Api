@@ -33,6 +33,7 @@
 
         public class AddressItem
         {
+            public int Id { get; set; }
             public string NameNumber { get; set; } = null!;
             public string State { get; set; } = null!;
             public string City { get; set; } = null!;
