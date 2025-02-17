@@ -73,6 +73,14 @@ namespace SoderiaLaNueva_Api.Controllers
         }
         #endregion
 
+        #region Search
+        [HttpPost]
+        public async Task<GenericResponse<GetAllResponse>> Search([FromBody] SearchRequest rq)
+        {
+            return await _clientService.Search(rq);
+        }
+        #endregion
+
         #region Other methods
         [HttpGet]
         public async Task<GenericResponse<GetClientProductsResponse>> GetClientProducts([FromQuery] GetClientProductsRequest rq)

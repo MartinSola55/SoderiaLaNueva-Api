@@ -20,7 +20,7 @@ namespace SoderiaLaNueva_Api.Services
                 Data = new GenericComboResponse
                 {
                     Items = await _db.User
-                    .Where(x => x.Role.Name == Roles.Dealer)
+                    .Where(x => x.Role.NormalizedName == "DEALER") // Don't like but it's the easiest way
                     .Select(x => new GenericComboResponse.Item
                     {
                         StringId = x.Id,

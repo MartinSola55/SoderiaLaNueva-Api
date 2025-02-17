@@ -436,11 +436,7 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            // TODO: esto valida otra cosa?? Creo que tendria que validar que no haya una subscripcion que le pases en la rq que no existe en la db, pero lo hace al reves y además está abajo
-            //if (await _db.Subscription.AnyAsync(x => !rq.SubscriptionIds.Contains(x.Id)))
-            //    return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
-
-            if (await _db.Subscription.Where(x => rq.SubscriptionIds.Contains(x.Id)).CountAsync() != rq.SubscriptionIds.Count)
+            if (!await _db.Subscription.AnyAsync(x => rq.SubscriptionIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
@@ -482,7 +478,6 @@ namespace SoderiaLaNueva_Api.Services
                     _db.ClientProduct.Add(new ClientProduct
                     {
                         ClientId = rq.ClientId,
-                        // TODO: Con que prdoucto creo la relación? Ahora lo hago con el ultimo creado de ese tipo
                         ProductId = (await _db.Product.OrderByDescending(x => x.CreatedAt).FirstAsync(x => x.TypeId == subscriptionProduct.ProductTypeId)).Id,
                         Stock = subscriptionProduct.TotalAvailable
                     });
@@ -504,6 +499,48 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.CRUD.EntitiesUpdated("Abonos");
+            return response;
+        }
+        #endregion
+
+        #region Search
+        public async Task<GenericResponse<GetAllResponse>> Search(SearchRequest rq)
+        {
+            var response = new GenericResponse<GetAllResponse>();
+
+            var query = _db
+                .Client
+                .Include(x => x.Dealer)
+                .Where(x => x.IsActive)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (rq.ClientId.HasValue)
+                query = query.Where(x => x.Id == rq.ClientId.Value);
+            else if (!string.IsNullOrEmpty(rq.Name))
+                query = query.Where(x => x.Name.ToLower().Contains(rq.Name.ToLower()));
+
+            try
+            {
+                response.Data = new GetAllResponse
+                {
+                    Clients = await query.Select(x => new GetAllResponse.Item
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Address = x.Address,
+                        Debt = x.Debt,
+                        Phone = x.Phone,
+                        DeliveryDay = x.DeliveryDay,
+                        DealerName = x.Dealer.FullName
+                    }).ToListAsync()
+                };
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
             return response;
         }
         #endregion

@@ -34,6 +34,7 @@ namespace SoderiaLaNueva_Api.Services
                     Id = x.Id,
                     Description = x.Description,
                     DealerId = x.DealerId,
+                    DealerName = x.Dealer.FullName,
                     Amount = x.Amount,
                     CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                 })
@@ -188,7 +189,7 @@ namespace SoderiaLaNueva_Api.Services
                 var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom, DateTimeKind.Utc).Date;
                 var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date.AddDays(1);
 
-                query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
+                query = query.Where(x => x.CreatedAt >= dateFromUTC && x.CreatedAt < dateToUTC);
             }
 
             return query;

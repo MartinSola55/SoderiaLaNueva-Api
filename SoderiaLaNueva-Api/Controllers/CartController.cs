@@ -12,9 +12,9 @@ namespace SoderiaLaNueva_Api.Controllers
         #region Combos
 
         [HttpGet]
-        public async Task<GenericResponse<GenericComboResponse>> GetPaymentStatusesCombo()
+        public async Task<GenericResponse<GenericComboResponse>> GetPaymentMethodsCombo()
         {
-            return await _cartService.GetPaymentStatusesCombo();
+            return await _cartService.GetPaymentMethodsCombo();
         }
         #endregion
 

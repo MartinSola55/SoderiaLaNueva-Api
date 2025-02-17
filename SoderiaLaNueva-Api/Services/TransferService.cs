@@ -46,9 +46,9 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<CreateResponse>> Create(CreateRequest rq)
+        public async Task<GenericResponse> Create(CreateRequest rq)
         {
-            var response = new GenericResponse<CreateResponse>();
+            var response = new GenericResponse();
 
             if (rq.Amount <= 0)
                 return response.SetError(Messages.Error.FieldGraterThanZero("monto"));
@@ -80,19 +80,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityCreated("Transferencia");
-            response.Data = new CreateResponse
-            {
-                Id = transfer.Id,
-                ClientName = client.Name,
-                Address = new CreateResponse.AddressItem
-                {
-                    NameNumber = client.Address.NameNumber
-                },
-                Phone = client.Phone,
-                Amount = transfer.Amount,
-                DealerName = client.Dealer.FullName,
-            };
+            response.Message = Messages.CRUD.EntityCreated("Transferencia", true);
             return response;
         }
 
@@ -177,9 +165,9 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.DateFrom <= rq.DateTo)
             {
                 var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom, DateTimeKind.Utc).Date;
-                var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date;
+                var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date.AddDays(1);
 
-                query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
+                query = query.Where(x => x.CreatedAt >= dateFromUTC && x.CreatedAt < dateToUTC);
             }
 
             return query;

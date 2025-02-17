@@ -20,7 +20,7 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<GenericResponse<CreateResponse>> Create([FromBody] CreateRequest rq)
+        public async Task<GenericResponse> Create([FromBody] CreateRequest rq)
         {
             return await _transferService.Create(rq);
         }
