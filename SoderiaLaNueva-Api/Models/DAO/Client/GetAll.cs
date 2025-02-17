@@ -23,10 +23,12 @@
             public string DealerName { get; set; } = null!;
             public int? DeliveryDay { get; set; }
         }
-
         public class AddressItem
         {
             public string NameNumber { get; set; } = null!;
+            public string State {get; set; } = null!;
+            public string City {get; set; } = null!;
+            public string Country {get; set; } = null!;
         }
     }
 }

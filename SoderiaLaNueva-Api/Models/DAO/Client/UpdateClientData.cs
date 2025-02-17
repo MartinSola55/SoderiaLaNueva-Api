@@ -18,6 +18,11 @@
         public class AddressItem
         {
             public string NameNumber { get; set; } = null!;
+            public string State { get; set; } = null!;
+            public string City { get; set; } = null!;
+            public string Country { get; set; } = null!;
+            public string Lat { get; set; } = null!;
+            public string Lon { get; set; } = null!;
         }
     }
 

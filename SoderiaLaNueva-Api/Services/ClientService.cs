@@ -95,7 +95,10 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetAllResponse.AddressItem
                         {
-                            NameNumber = x.Address.NameNumber
+                            NameNumber = x.Address.NameNumber,
+                            State = x.Address.State,
+                            City = x.Address.City,
+                            Country = x.Address.Country,
                         },
                         Debt = x.Debt,
                         Phone = x.Phone,
@@ -105,7 +108,7 @@ namespace SoderiaLaNueva_Api.Services
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
                     .ToListAsync()
-            }
+                }
             };
             return response;
         }
@@ -128,7 +131,12 @@ namespace SoderiaLaNueva_Api.Services
                     x.Name,
                     Address = new GetOneResponse.AddressItem
                     {
-                        NameNumber = x.Address.NameNumber
+                        NameNumber = x.Address.NameNumber,
+                        State = x.Address.State,
+                        City = x.Address.City,
+                        Country = x.Address.Country,
+                        Lat = x.Address.Lat,
+                        Lon = x.Address.Lon,
                     },
                     x.Phone,
                     x.Debt,
@@ -311,7 +319,12 @@ namespace SoderiaLaNueva_Api.Services
             client.Name = rq.Name;
             client.Address = rq.Address.NameNumber != null ? new Address
             {
-                NameNumber = rq.Address.NameNumber
+                NameNumber = rq.Address.NameNumber,
+                State = rq.Address.State,
+                City = rq.Address.City,
+                Country = rq.Address.Country,
+                Lat = rq.Address.Lat,
+                Lon = rq.Address.Lon,
             } : client.Address;
             client.Phone = rq.Phone;
             client.Observations = rq.Observations;
