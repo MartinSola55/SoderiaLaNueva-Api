@@ -2,7 +2,7 @@
 {
     public class GetAllRequest : GenericGetAllRequest
     {
-        public List<string?>? Roles { get; set; }
+        public List<string>? Roles { get; set; }
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
     }

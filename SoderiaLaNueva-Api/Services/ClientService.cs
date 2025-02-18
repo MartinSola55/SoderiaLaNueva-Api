@@ -440,10 +440,18 @@ namespace SoderiaLaNueva_Api.Services
 
                 if (existingClientProduct == null)
                 {
+                    var product = await _db
+                        .Product
+                        .OrderByDescending(x => x.CreatedAt)
+                        .FirstOrDefaultAsync(x => x.TypeId == subscriptionProduct.ProductTypeId);
+
+                    if (product is null)
+                        return response.SetError(Messages.Error.ProductDoesNotExistsForType());
+
                     _db.ClientProduct.Add(new ClientProduct
                     {
                         ClientId = rq.ClientId,
-                        ProductId = (await _db.Product.OrderByDescending(x => x.CreatedAt).FirstAsync(x => x.TypeId == subscriptionProduct.ProductTypeId)).Id,
+                        ProductId = product.Id,
                         Stock = subscriptionProduct.TotalAvailable
                     });
                 }
@@ -718,7 +726,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
 
             // Check duplicate client. Same CUIT or same name and address
-            if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
+            if (await _db.Client.AnyAsync(x => x.Id != entity.Id && x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
             || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.ToLower() == entity.Address.ToLower()))))
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));

@@ -124,9 +124,9 @@
             {
                 return "El cliente no puede tener más de un producto del mismo tipo.";
             }
-            public static string ProductDoesNotExistsForType(string productTypeName)
+            public static string ProductDoesNotExistsForType()
             {
-                return "No existe un producto cargado para el tipo de producto " +productTypeName + ".";
+                return "No existe un producto cargado en el sistema para el tipo de producto que posee el abono.";
             }
         }
         public class CRUD
