@@ -42,7 +42,8 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetClientsListResponse.AddressItem
                         {
-                            NameNumber = x.Address.NameNumber
+                            HouseNumber = x.Address.HouseNumber,
+                            Road = x.Address.Road,
                         }
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
@@ -143,7 +144,7 @@ namespace SoderiaLaNueva_Api.Services
                     Debt = y.Client.Debt,
                     Address = new GetStaticRouteResponse.AddressItem
                     {
-                        NameNumber = y.Client.Address.NameNumber
+                        HouseNumber = y.Client.Address.HouseNumber
                     },
                     Phone = y.Client.Phone,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
@@ -194,7 +195,7 @@ namespace SoderiaLaNueva_Api.Services
                     Name = y.Client.Name,
                     Address = new GetStaticRouteClientsResponse.AddressItem
                     {
-                        NameNumber = y.Client.Address.NameNumber
+                        HouseNumber = y.Client.Address.HouseNumber
                     }
                 }).ToList()
             }).FirstOrDefaultAsync();
@@ -374,7 +375,7 @@ namespace SoderiaLaNueva_Api.Services
                         Name = y.Client.Name,
                         Address = new GetDynamicRouteResponse.CartItem.AddressItem
                         {
-                            NameNumber = y.Client.Address.NameNumber
+                            HouseNumber = y.Client.Address.HouseNumber
                         },
                         Phone = y.Client.Phone,
                         Debt = y.Client.Debt,

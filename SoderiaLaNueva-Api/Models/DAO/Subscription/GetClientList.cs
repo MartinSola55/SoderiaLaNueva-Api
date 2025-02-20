@@ -19,7 +19,9 @@
 
         public class AddressItem
         {
-            public string NameNumber { get; set; } = null!;
+            public string? HouseNumber { get; set; }
+            public string? Road { get; set; }
+
         }
 
     }

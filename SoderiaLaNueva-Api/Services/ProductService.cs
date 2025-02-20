@@ -271,7 +271,8 @@ namespace SoderiaLaNueva_Api.Services
                     Name = x.Name,
                     Address = new GetClientListResponse.AddressItem
                     {
-                        NameNumber = x.Address.NameNumber
+                        HouseNumber = x.Address.HouseNumber,
+                        Road = x.Address.Road,
                     },
                     DealerName = x.Dealer.FullName,
                     DeliveryDay = x.DeliveryDay

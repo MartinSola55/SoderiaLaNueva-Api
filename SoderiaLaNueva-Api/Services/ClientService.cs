@@ -1,10 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Humanizer;
+using Microsoft.CodeAnalysis.Elfie.Serialization;
+using Microsoft.EntityFrameworkCore;
+using Mono.TextTemplating;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
 using System.Data;
+using System.Diagnostics.Metrics;
 using System.Linq;
 
 namespace SoderiaLaNueva_Api.Services
@@ -95,10 +99,20 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetAllResponse.AddressItem
                         {
-                            NameNumber = x.Address.NameNumber,
-                            State = x.Address.State,
-                            City = x.Address.City,
-                            Country = x.Address.Country,
+                            HouseNumber = x.Address.HouseNumber ?? "",
+                            Road = x.Address.Road ?? "",
+                            Neighbourhood = x.Address.Neighbourhood ?? "",
+                            Suburb = x.Address.Suburb ?? "",
+                            CityDistrict = x.Address.CityDistrict ?? "",
+                            City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                            Town = x.Address.Town ?? "",
+                            Village = x.Address.Village ?? "",
+                            County = x.Address.County ?? "",
+                            State = x.Address.State ?? "",
+                            Country = x.Address.Country ?? "",
+                            Postcode = x.Address.Postcode ?? "",
+                            Lat = x.Address.Lat,
+                            Lon = x.Address.Lon
                         },
                         Debt = x.Debt,
                         Phone = x.Phone,
@@ -132,12 +146,20 @@ namespace SoderiaLaNueva_Api.Services
                     Address = new GetOneResponse.AddressItem
                     {
                         Id = x.Id,
-                        NameNumber = x.Address.NameNumber,
-                        State = x.Address.State,
-                        City = x.Address.City,
-                        Country = x.Address.Country,
+                        HouseNumber = x.Address.HouseNumber ?? "",
+                        Road = x.Address.Road ?? "",
+                        Neighbourhood = x.Address.Neighbourhood ?? "",
+                        Suburb = x.Address.Suburb ?? "",
+                        CityDistrict = x.Address.CityDistrict ?? "",
+                        City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                        Town = x.Address.Town ?? "",
+                        Village = x.Address.Village ?? "",
+                        County = x.Address.County ?? "",
+                        State = x.Address.State ?? "",
+                        Country = x.Address.Country ?? "",
+                        Postcode = x.Address.Postcode ?? "",
                         Lat = x.Address.Lat,
-                        Lon = x.Address.Lon,
+                        Lon = x.Address.Lon
                     },
                     x.Phone,
                     x.Debt,
@@ -201,12 +223,20 @@ namespace SoderiaLaNueva_Api.Services
                 Name = rq.Name,
                 Address = new Address
                 {
-                    NameNumber = rq.Address.NameNumber,
-                    State = rq.Address.State,
-                    City = rq.Address.City,
-                    Country = rq.Address.Country,
+                    HouseNumber = rq.Address.HouseNumber ?? "",
+                    Road = rq.Address.Road ?? "",
+                    Neighbourhood = rq.Address.Neighbourhood ?? "",
+                    Suburb = rq.Address.Suburb ?? "",
+                    CityDistrict = rq.Address.CityDistrict ?? "",
+                    City = rq.Address.City ?? rq.Address.Town ?? rq.Address.Village ?? "",
+                    Town = rq.Address.Town ?? "",
+                    Village = rq.Address.Village ?? "",
+                    County = rq.Address.County ?? "",
+                    State = rq.Address.State ?? "",
+                    Country = rq.Address.Country ?? "",
+                    Postcode = rq.Address.Postcode ?? "",
                     Lat = rq.Address.Lat,
-                    Lon = rq.Address.Lon,
+                    Lon = rq.Address.Lon
                 },
                 Phone = rq.Phone,
                 Observations = rq.Observations,
@@ -329,10 +359,18 @@ namespace SoderiaLaNueva_Api.Services
             client.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
             // Address data
-            client.Address.NameNumber = rq.Address.NameNumber;
-            client.Address.State = rq.Address.State;
-            client.Address.City = rq.Address.City;
-            client.Address.Country = rq.Address.Country;
+            client.Address.HouseNumber = rq.Address.HouseNumber ?? "";
+            client.Address.Road = rq.Address.Road ?? "";
+            client.Address.Neighbourhood = rq.Address.Neighbourhood ?? "";
+            client.Address.Suburb = rq.Address.Suburb ?? "";
+            client.Address.CityDistrict = rq.Address.CityDistrict ?? "";
+            client.Address.City = rq.Address.City ?? rq.Address.Town ?? rq.Address.Village ?? "";
+            client.Address.Town = rq.Address.Town ?? "";
+            client.Address.Village = rq.Address.Village ?? "";
+            client.Address.County = rq.Address.County ?? "";
+            client.Address.State = rq.Address.State ?? "";
+            client.Address.Country = rq.Address.Country ?? "";
+            client.Address.Postcode = rq.Address.Postcode ?? "";
             client.Address.Lat = rq.Address.Lat;
             client.Address.Lon = rq.Address.Lon;
             client.Address.UpdatedAt = DateTime.UtcNow.AddHours(-3);
@@ -531,10 +569,20 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetAllResponse.AddressItem()
                         {
-                            NameNumber = x.Address.NameNumber,
-                            City = x.Address.City,
-                            State = x.Address.State,
-                            Country = x.Address.Country
+                            HouseNumber = x.Address.HouseNumber ?? "",
+                            Road = x.Address.Road ?? "",
+                            Neighbourhood = x.Address.Neighbourhood ?? "",
+                            Suburb = x.Address.Suburb ?? "",
+                            CityDistrict = x.Address.CityDistrict ?? "",
+                            City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                            Town = x.Address.Town ?? "",
+                            Village = x.Address.Village ?? "",
+                            County = x.Address.County ?? "",
+                            State = x.Address.State ?? "",
+                            Country = x.Address.Country ?? "",
+                            Postcode = x.Address.Postcode ?? "",
+                            Lat = x.Address.Lat,
+                            Lon = x.Address.Lon
                         },
                         Debt = x.Debt,
                         Phone = x.Phone,
@@ -761,7 +809,7 @@ namespace SoderiaLaNueva_Api.Services
 
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && !x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
-            || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.NameNumber.ToLower() == entity.Address.NameNumber.ToLower()))))
+            || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.HouseNumber.ToLower() == entity.Address.HouseNumber.ToLower()))))
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
             }

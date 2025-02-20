@@ -22,7 +22,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
 
         public class AddressItem
         {
-            public string NameNumber { get; set; } = null!;
+            public string? HouseNumber { get; set; }
         }
     }
 }

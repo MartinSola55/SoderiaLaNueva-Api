@@ -20,7 +20,7 @@ namespace SoderiaLaNueva_Api.Services
                 Data = new GenericComboResponse
                 {
                     Items = await _db.User
-                    .Where(x => x.Role.NormalizedName == "DEALER") // Don't like but it's the easiest way
+                    .Where(x => x.Role.NormalizedName == "REPARTIDOR") // Don't like but it's the easiest way
                     .Select(x => new GenericComboResponse.Item
                     {
                         StringId = x.Id,
@@ -133,7 +133,7 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetClientsNotVisitedResponse.AddressItem
                         {
-                            NameNumber = x.Address.NameNumber
+                            HouseNumber = x.Address.HouseNumber
                         },
                     }).ToListAsync()
                 }
