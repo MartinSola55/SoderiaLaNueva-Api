@@ -63,7 +63,7 @@ namespace SoderiaLaNueva_Api.Services
                 User = new LoginResponse.Item
                 {
                     Id = user.Id,
-                    Role = user.Role.Name,
+                    Role = user.Role.NormalizedName,
                     FullName = user.FullName,
                     Email = user.Email ?? "",
                 }

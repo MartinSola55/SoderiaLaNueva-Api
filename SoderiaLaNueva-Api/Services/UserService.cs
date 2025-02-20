@@ -41,7 +41,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .User
                 .Include(x => x.Role)
-                .Where(x => x.Role.NormalizedName == "DEALER") // Don't like but it's the easiest way
+                .Where(x => x.Role.NormalizedName == Roles.Dealer.ToUpper())
                 .OrderBy(x => x.FullName)
                 .AsQueryable();
 
@@ -74,7 +74,7 @@ namespace SoderiaLaNueva_Api.Services
             if (rq.Roles != null && rq.Roles.Count > 0)
             {
                 var roles = await _db.Roles
-                    .Where(x => rq.Roles.Contains(x.Name))
+                    .Where(x => rq.Roles.Contains(x.NormalizedName))
                     .Select(x => x.Id)
                     .ToListAsync();
 
