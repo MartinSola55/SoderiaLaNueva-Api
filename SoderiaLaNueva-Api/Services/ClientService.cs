@@ -131,6 +131,7 @@ namespace SoderiaLaNueva_Api.Services
                     x.TaxCondition,
                     x.CUIT,
                     x.Observations,
+                    x.CreatedAt,
                     Products = x.Products.Select(x => new GetOneResponse.ProductItem 
                     {
                         Id = x.Product.Id,
@@ -164,6 +165,7 @@ namespace SoderiaLaNueva_Api.Services
                 TaxCondition = client.TaxCondition,
                 CUIT = client.CUIT,
                 Observations = client.Observations,
+                CreatedAt = client.CreatedAt.ToString("dd/MM/yyyy"),
                 Products = client.Products,
                 Subscriptions = client.Subscriptions,
                 SalesHistory = salesHistory,
@@ -618,6 +620,7 @@ namespace SoderiaLaNueva_Api.Services
                     Payments = [new()
                     {
                         Amount = transfer.Amount,
+                        Name = CartsTransfersType.Transfer
                     }]
                 });
             }

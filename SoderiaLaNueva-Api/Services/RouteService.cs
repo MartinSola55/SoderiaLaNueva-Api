@@ -329,6 +329,15 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && x.DealerId == cartData.DealerId)
                 .Sum(x => x.Amount);
 
+            var productTypes = await _db
+                .ProductType
+                .Where(x => x.Name != ProductTypes.Maquina)
+                .Select(x => new GetDynamicRouteResponse.ProductTypeItem
+                {
+                    Id = x.Id,
+                    Name = x.Name
+                }).ToListAsync();
+
             //Get route data
             response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
@@ -338,6 +347,7 @@ namespace SoderiaLaNueva_Api.Services
                 TransfersAmount = transfersAmount,
                 SpentAmount = spentAmount,
                 IsClosed = x.IsClosed,
+                ProductTypes = productTypes,
                 Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
@@ -349,7 +359,9 @@ namespace SoderiaLaNueva_Api.Services
                         Name = pm.PaymentMethod.Name,
                         Amount = pm.Amount
                     }).ToList(),
-                    Products = y.Products.Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
+                    Products = y.Products
+                    .Where(y => y.Type.Name != ProductTypes.Maquina)
+                    .Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
                     {
                         ProductTypeId = p.ProductTypeId,
                         ProductId = p.ProductTypeId,
@@ -372,6 +384,7 @@ namespace SoderiaLaNueva_Api.Services
                         .OrderByDescending(z => z.CreatedAt)
                         .Take(10)
                         .SelectMany(z => z.Products)
+                        .Where(z => z.Type.Name != ProductTypes.Maquina)
                         .Select(z => new GetDynamicRouteResponse.CartItem.LastProductItem
                         {
                             Date = z.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
@@ -379,9 +392,12 @@ namespace SoderiaLaNueva_Api.Services
                             ReturnedQuantity = z.ReturnedQuantity,
                             SoldQuantity = z.SoldQuantity
                         }).ToList(),
-                        Products = y.Client.Products.Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
+                        Products = y.Client.Products
+                        .Where(y => y.Product.Type.Name != ProductTypes.Maquina)
+                        .Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
                         {
                             ProductId = z.ProductId,
+                            ProductTypeId = z.Product.TypeId,
                             Name = z.Product.Type.Name,
                             Price = z.Product.Price,
                             Stock = z.Stock
@@ -655,6 +671,7 @@ namespace SoderiaLaNueva_Api.Services
             var route = await _db
                 .Route
                 .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
                 .FirstOrDefaultAsync(x => x.Id == rq.RouteId && x.IsStatic);
 
             if (route is null)
@@ -675,6 +692,18 @@ namespace SoderiaLaNueva_Api.Services
             route.UpdatedAt = DateTime.UtcNow;
             route.Carts.RemoveAll(x => cartsToRemove.Contains(x));
             route.Carts.AddRange(cartsToAdd);
+
+            cartsToRemove.ForEach(x =>
+            {
+                x.Client.DealerId = null;
+                x.Client.DeliveryDay = null;
+                x.DeletedAt = DateTime.UtcNow;
+            });
+            route.Carts.ForEach(x =>
+            {
+                x.Client.DealerId = route.DealerId;
+                x.Client.DeliveryDay = route.DeliveryDay;
+            });
 
             // Save changes
             try

@@ -258,7 +258,9 @@ namespace SoderiaLaNueva_Api.Services
                     x.Client,
                     x.SubscriptionId,
                     x.Subscription.Price,
-                    Products = x.Subscription.Products.Select(p => new
+                    Products = x.Subscription.Products
+                    .Where(x => x.ProductType.Name != ProductTypes.Maquina)
+                    .Select(p => new
                     {
                         p.ProductTypeId,
                         p.Quantity,
@@ -340,7 +342,9 @@ namespace SoderiaLaNueva_Api.Services
                     x.Client,
                     x.SubscriptionId,
                     x.Subscription.Price,
-                    Products = x.Subscription.Products.Select(p => new
+                    Products = x.Subscription.Products
+                    .Where(x => x.ProductType.Name != ProductTypes.Maquina)
+                    .Select(p => new
                     {
                         p.ProductTypeId,
                         p.Quantity,

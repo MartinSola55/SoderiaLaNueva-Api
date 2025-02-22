@@ -116,6 +116,10 @@
             {
                 return "No hay suficiente stock de " + productName + ".";
             }
+            public static string NotAvailableSubscription(string productName)
+            {
+                return "El cliente no dispone la cantidad ingresada de " + productName + " (abono).";
+            }
             public static string InactiveClient(string name)
             {
                 return "El cliente " + name + " se encuentra inactivo en el sistema.";

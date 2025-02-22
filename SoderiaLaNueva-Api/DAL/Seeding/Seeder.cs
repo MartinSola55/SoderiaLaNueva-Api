@@ -52,17 +52,10 @@ namespace SoderiaLaNueva_Api.DAL.Seeding
         #region DB Seed
         private void SeedProductTypes()
         {
-            _db.ProductType.AddRange(ProductTypes.Select(x => new ProductType() { Name = x }));
+            _db.ProductType.AddRange(ProductTypes.GetProductTypes().Select(x => new ProductType() { Name = x }));
 
             _db.SaveChanges();
         }
-
-        private readonly string[] ProductTypes = [
-            "Bidón 12L",
-            "Bidón 20L",
-            "Soda",
-            "Máquina frío/calor",
-        ];
         #endregion
     }
 }
