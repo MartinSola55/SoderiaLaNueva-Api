@@ -320,17 +320,17 @@ namespace SoderiaLaNueva_Api.Services
                 .Select(x => x.ClientId)
                 .ToListAsync();
 
-            var transfersAmount = _db
+            var transfersAmount = await _db
                 .Transfer
                 .Where(x => routeClients.Contains(x.ClientId))
                 .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date)
-                .Sum(x => x.Amount);
+                .SumAsync(x => x.Amount);
 
-            var spentAmount = _db
+            var spentAmount = await _db
                 .Expense
                 .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date)
                 .Where(x => x.DealerId == routeDealerId)
-                .Sum(x => x.Amount);
+                .SumAsync(x => x.Amount);
 
             var productTypes = await _db
                 .ProductType

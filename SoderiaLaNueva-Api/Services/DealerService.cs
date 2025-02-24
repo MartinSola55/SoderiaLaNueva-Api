@@ -174,7 +174,8 @@ namespace SoderiaLaNueva_Api.Services
                     x.Type.Name,
                     x.SoldQuantity,
                     x.SettedPrice
-                });
+                })
+                .AsQueryable();
 
             var productTypes = products
                 .GroupBy(x => x.ProductTypeId)
@@ -251,7 +252,7 @@ namespace SoderiaLaNueva_Api.Services
 
             return response;
         }
-        
+
         public async Task<GenericResponse<GetClientsDebtResponse>> GetClientsDebt(GetClientsDebtRequest rq)
         {
             var query = _db

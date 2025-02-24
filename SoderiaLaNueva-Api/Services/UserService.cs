@@ -98,7 +98,7 @@ namespace SoderiaLaNueva_Api.Services
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
                     .ToListAsync()
-            }
+                }
             };
             return response;
         }
@@ -111,7 +111,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
-             if (user == null)
+            if (user == null)
                 return response.SetError(Messages.Error.EntityNotFound("Usuario"));
 
             response.Data = new GetOneResponse()
@@ -177,8 +177,6 @@ namespace SoderiaLaNueva_Api.Services
                 }
 
                 // Save changes
-                await _db.SaveChangesAsync();
-             
                 await _db.SaveChangesAsync();
                 await _db.Database.CommitTransactionAsync();
             }
