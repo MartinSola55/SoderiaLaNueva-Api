@@ -77,7 +77,7 @@ namespace SoderiaLaNueva_Api.Services
 
             return response;
         }
-        
+
         public async Task<GenericResponse<GetAllDealerStaticResponse>> GetAllDealerStaticRoutes()
         {
             var query = _db
@@ -304,32 +304,44 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.Client)
                         .ThenInclude(x => x.Carts)
                 .Include(x => x.Dealer)
-                .Where(x => !x.IsStatic && x.Id == rq.Id)
+                .Where(x => x.Id == rq.Id)
                 .AsQueryable();
 
-            //Get transfers and expenses of route 
-            var cartData = await _db
+            // Get transfers and expenses
+            var routeDealerId = await _db
                 .Route
-                .Include(x => x.Carts)
-                    .ThenInclude(x => x.Client)
-                .Select(x => new
-                {
-                    x.Carts,
-                    x.DealerId,
-                })
+                .Where(x => x.Id == rq.Id)
+                .Select(x => x.DealerId)
                 .FirstAsync();
 
-            var transfersAmount = _db
+            var routeClients = await _db
+                .Cart
+                .Where(x => x.RouteId == rq.Id)
+                .Select(x => x.ClientId)
+                .ToListAsync();
+
+            var transfersAmount = await _db
                 .Transfer
-                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && cartData.Carts.Select(y => y.Client.Id).Contains(x.ClientId))
-                .Sum(x => x.Amount);
+                .Where(x => routeClients.Contains(x.ClientId))
+                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date)
+                .SumAsync(x => x.Amount);
 
-            var spentAmount = _db
+            var spentAmount = await _db
                 .Expense
-                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date && x.DealerId == cartData.DealerId)
-                .Sum(x => x.Amount);
+                .Where(x => x.CreatedAt.Date == DateTime.UtcNow.Date)
+                .Where(x => x.DealerId == routeDealerId)
+                .SumAsync(x => x.Amount);
 
-            //Get route data
+            var productTypes = await _db
+                .ProductType
+                .Where(x => x.Name != ProductTypes.Maquina)
+                .Select(x => new GetDynamicRouteResponse.ProductTypeItem
+                {
+                    Id = x.Id,
+                    Name = x.Name
+                }).ToListAsync();
+
+            // Get route data
             response.Data = await query.Select(x => new GetDynamicRouteResponse
             {
                 Id = x.Id,
@@ -338,6 +350,7 @@ namespace SoderiaLaNueva_Api.Services
                 TransfersAmount = transfersAmount,
                 SpentAmount = spentAmount,
                 IsClosed = x.IsClosed,
+                ProductTypes = productTypes,
                 Carts = x.Carts.Select(y => new GetDynamicRouteResponse.CartItem
                 {
                     Id = y.Id,
@@ -349,7 +362,9 @@ namespace SoderiaLaNueva_Api.Services
                         Name = pm.PaymentMethod.Name,
                         Amount = pm.Amount
                     }).ToList(),
-                    Products = y.Products.Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
+                    Products = y.Products
+                    .Where(y => y.Type.Name != ProductTypes.Maquina)
+                    .Select(p => new GetDynamicRouteResponse.CartItem.ProductItem
                     {
                         ProductTypeId = p.ProductTypeId,
                         ProductId = p.ProductTypeId,
@@ -372,6 +387,7 @@ namespace SoderiaLaNueva_Api.Services
                         .OrderByDescending(z => z.CreatedAt)
                         .Take(10)
                         .SelectMany(z => z.Products)
+                        .Where(z => z.Type.Name != ProductTypes.Maquina)
                         .Select(z => new GetDynamicRouteResponse.CartItem.LastProductItem
                         {
                             Date = z.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
@@ -379,9 +395,12 @@ namespace SoderiaLaNueva_Api.Services
                             ReturnedQuantity = z.ReturnedQuantity,
                             SoldQuantity = z.SoldQuantity
                         }).ToList(),
-                        Products = y.Client.Products.Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
+                        Products = y.Client.Products
+                        .Where(y => y.Product.Type.Name != ProductTypes.Maquina)
+                        .Select(z => new GetDynamicRouteResponse.CartItem.ClientProductItem
                         {
                             ProductId = z.ProductId,
+                            ProductTypeId = z.Product.TypeId,
                             Name = z.Product.Type.Name,
                             Price = z.Product.Price,
                             Stock = z.Stock
@@ -402,14 +421,9 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<GetDynamicRoutesResponse>> GetDynamicRoutes(GetDynamicRoutesRequest rq)
+        public async Task<GenericResponse<GetDynamicAdminRoutesResponse>> GetDynamicAdminRoutes(GetDynamicAdminRoutesRequest rq)
         {
-            var response = new GenericResponse<GetDynamicRoutesResponse>();
-
-            if (rq.DeliveryDay == null && rq.Date == null)
-            {
-                return response.SetError("Fecha no encontrada.");
-            };
+            var response = new GenericResponse<GetDynamicAdminRoutesResponse>();
 
             var query = _db
                 .Route
@@ -417,18 +431,10 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.Products)
                 .Include(x => x.Dealer)
                 .Where(x => !x.IsStatic)
+                .Where(x => x.CreatedAt.Date == rq.Date.Date)
+                .OrderBy(x => x.Dealer.FullName)
+                    .ThenByDescending(x => x.CreatedAt)
                 .AsQueryable();
-
-            if (!_auth.IsAdmin() && rq.DeliveryDay != null)
-            {
-                query = query
-                    .Where(x => x.DealerId == _token.UserId && x.DeliveryDay == rq.DeliveryDay.Value)
-                    .OrderByDescending(x => x.CreatedAt);
-            }
-            else if (_auth.IsAdmin() && rq.Date != null)
-            { 
-                query = query.Where(x => x.CreatedAt.Date == rq.Date.Value.Date).OrderBy(x => x.Dealer);
-            }
 
             var productTypes = await _db
                 .ProductType
@@ -438,7 +444,7 @@ namespace SoderiaLaNueva_Api.Services
                     x.Name
                 }).ToListAsync();
 
-            var routes = await query.Select(x => new 
+            var routes = await query.Select(x => new
             {
                 x.Id,
                 Dealer = x.Dealer.FullName,
@@ -450,18 +456,16 @@ namespace SoderiaLaNueva_Api.Services
                 Products = x.Carts.SelectMany(x => x.Products)
             }).ToListAsync();
 
-            var createdAtList = routes.Select(y => y.CreatedAt).ToList();
             var clientIdList = routes.SelectMany(y => y.ClientIds).ToList();
-
             var transfersTotalCollected = await _db
                 .Transfer
-                .Where(x => createdAtList.Contains(x.CreatedAt.Date))
+                .Where(x => x.CreatedAt.Date == rq.Date.Date)
                 .Where(x => clientIdList.Contains(x.ClientId))
                 .Select(x => new
                 {
+                    x.ClientId,
                     x.Amount,
-                    CreatedAt = x.CreatedAt.Date,
-                    x.ClientId
+                    CreatedAt = x.CreatedAt.Date
                 })
                 .ToListAsync();
 
@@ -475,9 +479,9 @@ namespace SoderiaLaNueva_Api.Services
               })
               .ToList();
 
-            response.Data = new GetDynamicRoutesResponse
+            response.Data = new GetDynamicAdminRoutesResponse
             {
-                Routes = routes.Select(x => new GetDynamicRoutesResponse.RouteItem
+                Routes = routes.Select(x => new GetDynamicAdminRoutesResponse.RouteItem
                 {
                     Id = x.Id,
                     Dealer = x.Dealer,
@@ -485,13 +489,79 @@ namespace SoderiaLaNueva_Api.Services
                     CompletedCarts = x.CompletedCarts,
                     TotalCollected = x.TotalCollected + transfersTotalCollected
                         .Where(t => t.CreatedAt == x.CreatedAt && x.ClientIds.Contains(t.ClientId))
-                        .Sum(t => t.Amount), 
-                    SoldProducts = productTypes.Select(x => new GetDynamicRoutesResponse.RouteItem.SoldProductItem
+                        .Sum(t => t.Amount),
+                    SoldProducts = productTypes.Select(x => new GetDynamicAdminRoutesResponse.RouteItem.SoldProductItem
                     {
                         Name = x.Name,
-                        Amount = productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id) != null ? productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id).TotalQuantity : 0
+                        Amount = productsSold.FirstOrDefault(y => y.ProductTypeId == x.Id)?.TotalQuantity ?? 0
                     }).ToList(),
-                    CreatedAt = _auth.IsAdmin() ? null : x.CreatedAt.ToString("dd/MM/yyyy"),
+                }).ToList()
+            };
+
+            return response;
+        }
+
+        public async Task<GenericResponse<GetDynamicDealerRoutesResponse>> GetDynamicDealerRoutes(GetDynamicDealerRoutesRequest rq)
+        {
+            var response = new GenericResponse<GetDynamicDealerRoutesResponse>();
+
+            var query = _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Products)
+                .Include(x => x.Dealer)
+                .Where(x => !x.IsStatic)
+                .Where(x => x.DealerId == _token.UserId && x.DeliveryDay == rq.DeliveryDay)
+                .OrderByDescending(x => x.CreatedAt)
+                .AsQueryable();
+
+            var productTypes = await _db
+                .ProductType
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name
+                }).ToListAsync();
+
+            var routes = await query.Select(x => new
+            {
+                x.Id,
+                Dealer = x.Dealer.FullName,
+                TotalCarts = x.Carts.Count,
+                CompletedCarts = x.Carts.Count(y => y.Status != CartStatuses.Pending),
+                TotalCollected = x.Carts.SelectMany(y => y.Products).Sum(y => y.SoldQuantity * y.SettedPrice),
+                CreatedAt = x.CreatedAt.Date,
+                ClientIds = x.Carts.Select(x => x.ClientId),
+                Products = x.Carts.SelectMany(x => x.Products)
+            }).ToListAsync();
+
+            var clientIdList = routes.SelectMany(y => y.ClientIds).ToList();
+            var daysList = routes.Select(x => x.CreatedAt).ToList();
+
+            var transfersTotalCollected = await _db
+                .Transfer
+                .Where(x => daysList.Contains(x.CreatedAt.Date))
+                .Where(x => clientIdList.Contains(x.ClientId))
+                .Select(x => new
+                {
+                    x.ClientId,
+                    x.Amount,
+                    CreatedAt = x.CreatedAt.Date
+                })
+                .ToListAsync();
+
+            response.Data = new GetDynamicDealerRoutesResponse
+            {
+                Routes = routes.Select(x => new GetDynamicDealerRoutesResponse.RouteItem
+                {
+                    Id = x.Id,
+                    Dealer = x.Dealer,
+                    TotalCarts = x.TotalCarts,
+                    CompletedCarts = x.CompletedCarts,
+                    TotalCollected = x.TotalCollected + transfersTotalCollected
+                        .Where(t => t.CreatedAt == x.CreatedAt && x.ClientIds.Contains(t.ClientId))
+                        .Sum(t => t.Amount),
+                    CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy"),
                 }).ToList()
             };
 
@@ -546,7 +616,7 @@ namespace SoderiaLaNueva_Api.Services
             response.Message = Messages.Operations.RouteOpened();
             response.Data = new OpenNewResponse
             {
-                Id= route.Id
+                Id = route.Id
             };
 
             return response;
@@ -604,6 +674,7 @@ namespace SoderiaLaNueva_Api.Services
             var route = await _db
                 .Route
                 .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
                 .FirstOrDefaultAsync(x => x.Id == rq.RouteId && x.IsStatic);
 
             if (route is null)
@@ -624,6 +695,18 @@ namespace SoderiaLaNueva_Api.Services
             route.UpdatedAt = DateTime.UtcNow;
             route.Carts.RemoveAll(x => cartsToRemove.Contains(x));
             route.Carts.AddRange(cartsToAdd);
+
+            cartsToRemove.ForEach(x =>
+            {
+                x.Client.DealerId = null;
+                x.Client.DeliveryDay = null;
+                x.DeletedAt = DateTime.UtcNow;
+            });
+            route.Carts.ForEach(x =>
+            {
+                x.Client.DealerId = route.DealerId;
+                x.Client.DeliveryDay = route.DeliveryDay;
+            });
 
             // Save changes
             try
@@ -729,7 +812,7 @@ namespace SoderiaLaNueva_Api.Services
             query = query
                 .Where(x => x.IsStatic)
                 .Where(x => x.DeliveryDay == rq.DeliveryDay);
-            
+
             if (!_auth.IsAdmin())
             {
                 query = query.Where(x => x.DealerId == _token.UserId);
@@ -745,9 +828,6 @@ namespace SoderiaLaNueva_Api.Services
         private async Task<GenericResponse> ValidateAddClient(AddClientRequest rq)
         {
             var response = new GenericResponse();
-            //TODO ver esta validación
-            //if (!_auth.IsAdmin() && await _db.Cart.AnyAsync(x => x.Id == rq.Id && x.Route.DealerId != _token.UserId))
-            //    return response.SetError(Messages.Error.Unauthorized());
 
             if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && !x.IsStatic))
                 return response.SetError(Messages.Error.EntityNotFound("Bajada", true));

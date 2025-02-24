@@ -116,6 +116,10 @@
             {
                 return "No hay suficiente stock de " + productName + ".";
             }
+            public static string NotAvailableSubscription(string productName)
+            {
+                return "El cliente no dispone la cantidad ingresada de " + productName + " (abono).";
+            }
             public static string InactiveClient(string name)
             {
                 return "El cliente " + name + " se encuentra inactivo en el sistema.";
@@ -124,9 +128,9 @@
             {
                 return "El cliente no puede tener más de un producto del mismo tipo.";
             }
-            public static string ProductDoesNotExistsForType(string productTypeName)
+            public static string ProductDoesNotExistsForType()
             {
-                return "No existe un producto cargado para el tipo de producto " +productTypeName + ".";
+                return "No existe un producto cargado en el sistema para el tipo de producto que posee el abono.";
             }
         }
         public class CRUD

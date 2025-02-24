@@ -11,6 +11,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Cart
     public class GetOneResponse
     {
         public int Id { get; set; }
+        public int RouteId { get; set; }
         public int DeliveryDay { get; set; }
         public string Dealer { get; set; } = null!;
         public string Client { get; set; } = null!;
@@ -24,6 +25,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Cart
             public int Id { get; set; }
             public int ProductTypeId { get; set; }
             public string Name { get; set; } = null!;
+            public decimal Price { get; set; }
             public int SoldQuantity { get; set; }
             public int ReturnedQuantity { get; set; }
             public int SubscriptionQuantity { get; set; }

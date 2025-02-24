@@ -13,6 +13,7 @@
         public string Address { get; set; } = null!;
         public string Phone { get; set; } = null!;
         public string? Observations { get; set; }
+        public string CreatedAt { get; set; } = null!;
         public decimal Debt { get; set; }
         public int? DeliveryDay { get; set; }
         public bool HasInvoice { get; set; }
