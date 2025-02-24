@@ -16,8 +16,6 @@ namespace SoderiaLaNueva_Api.Services
             if (_httpContextAccessor.HttpContext == null)
                 throw new Exception("No se ha podido encontrar el token");
 
-            var businessId = _httpContextAccessor.HttpContext.User.Claims.FirstOrDefault(x => x.Type == "businessId")?.Value;
-            var subsidiaryId = _httpContextAccessor.HttpContext.User.Claims.FirstOrDefault(x => x.Type == "subsidiaryId")?.Value;
             return new Token
             {
                 UserId = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == "userId").Value,

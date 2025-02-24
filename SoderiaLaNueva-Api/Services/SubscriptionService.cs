@@ -161,14 +161,24 @@ namespace SoderiaLaNueva_Api.Services
             nonExistentProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
 
             // Update existent products
-            foreach (var product in subscription.Products)
+            foreach (var product in rq.SubscriptionProducts)
             {
-                var rqProduct = rq.SubscriptionProducts.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+                var subscriptionProduct = subscription.Products.FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
 
-                if (rqProduct is not null)
+                if (subscriptionProduct is not null)
                 {
-                    product.Quantity = rqProduct.Quantity;
-                    product.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+                    subscriptionProduct.Quantity = product.Quantity;
+                    subscriptionProduct.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+                }
+                else
+                {
+                    var newProduct = new SubscriptionProduct
+                    {
+                        ProductTypeId = product.ProductTypeId,
+                        Quantity = product.Quantity,
+                    };
+
+                    subscription.Products.Add(newProduct);
                 }
             }
 
