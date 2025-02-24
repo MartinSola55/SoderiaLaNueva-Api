@@ -14,7 +14,14 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
         public decimal TransfersAmount { get; set; }
         public decimal SpentAmount { get; set; }
         public bool IsClosed { get; set; }
+        public List<ProductTypeItem> ProductTypes { get; set; } = [];
         public List<CartItem> Carts { get; set; } = [];
+
+        public class ProductTypeItem
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = null!;
+        }
 
         public class CartItem
         {
@@ -47,6 +54,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public class ClientProductItem
             {
                 public int ProductId { get; set; }
+                public int ProductTypeId { get; set; }
                 public string Name { get; set; } = null!;
                 public decimal Price { get; set; }
                 public int Stock { get; set; }

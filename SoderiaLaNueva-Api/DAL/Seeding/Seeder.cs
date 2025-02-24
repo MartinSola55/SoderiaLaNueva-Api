@@ -25,7 +25,7 @@ namespace SoderiaLaNueva_Api.DAL.Seeding
 
                 // Create roles
                 foreach (var role in Roles.GetRoles())
-                     _roleManager.CreateAsync(new IdentityRole(role)).GetAwaiter().GetResult();
+                    _roleManager.CreateAsync(new IdentityRole(role)).GetAwaiter().GetResult();
 
                 var roleId = _db.Roles.Where(r => r.Name == Roles.Admin).Select(r => r.Id).FirstOrDefault() ?? throw new Exception("No se ha encontrado el rol");
 
@@ -52,17 +52,10 @@ namespace SoderiaLaNueva_Api.DAL.Seeding
         #region DB Seed
         private void SeedProductTypes()
         {
-            _db.ProductType.AddRange(ProductTypes.Select(x => new ProductType() { Name = x }));
+            _db.ProductType.AddRange(ProductTypes.GetProductTypes().Select(x => new ProductType() { Name = x }));
 
             _db.SaveChanges();
         }
-
-        private readonly string[] ProductTypes = [
-            "Bidón 12L",
-            "Bidón 20L",
-            "Soda",
-            "Máquina frío/calor",
-        ];
         #endregion
     }
 }

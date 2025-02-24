@@ -1,11 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NuGet.Protocol;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Cart;
-using SoderiaLaNueva_Api.Models.DAO.Route;
 using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
@@ -77,6 +75,7 @@ namespace SoderiaLaNueva_Api.Services
                 Data = await query.Select(x => new GetOneResponse()
                 {
                     Id = x.Id,
+                    RouteId = x.RouteId,
                     DeliveryDay = x.Route.DeliveryDay,
                     Dealer = x.Route.Dealer.FullName,
                     Client = x.Client.Name,
@@ -89,7 +88,9 @@ namespace SoderiaLaNueva_Api.Services
                             Name = z.Key.Name,
                             Available = z.Sum(z => z.AvailableQuantity)
                         }).ToList(),
-                    Products = x.Products.Select(y => new GetOneResponse.ProductItem()
+                    Products = x.Products
+                    .Where(x => x.Type.Name != ProductTypes.Maquina)
+                    .Select(y => new GetOneResponse.ProductItem()
                     {
                         Id = y.Id,
                         ProductTypeId = y.ProductTypeId,
@@ -99,7 +100,9 @@ namespace SoderiaLaNueva_Api.Services
                         ReturnedQuantity = y.ReturnedQuantity,
                         SubscriptionQuantity = y.SubscriptionQuantity,
                     }).ToList(),
-                    ClientProducts = x.Client.Products.Select(z => new GetOneResponse.ClientProductItem
+                    ClientProducts = x.Client.Products
+                    .Where(x => x.Product.Type.Name != ProductTypes.Maquina)
+                    .Select(z => new GetOneResponse.ClientProductItem
                     {
                         ProductId= z.ProductId,
                         ProductTypeId= z.Product.TypeId,
@@ -142,7 +145,7 @@ namespace SoderiaLaNueva_Api.Services
             // Paid products
             foreach (var product in rq.Products)
             {
-                var clientProduct = cart.Client.Products.First(x => x.ProductId == product.ProductTypeId);
+                var clientProduct = cart.Client.Products.First(x => x.Product.TypeId == product.ProductTypeId);
 
                 // Update client stock
                 clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
@@ -250,7 +253,7 @@ namespace SoderiaLaNueva_Api.Services
             response.Message = Messages.Operations.CartConfirmed();
             response.Data = new ConfirmResponse
             {
-                Id = cart.Id
+                ClientDebt = cart.Client.Debt
             };
 
             return response;
@@ -322,15 +325,7 @@ namespace SoderiaLaNueva_Api.Services
                     var clientProduct = cart
                         .Client
                         .Products
-                        .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
-
-                    if (clientProduct is null)
-                        //_db.ClientProduct.Add(new ClientProduct
-                        //{
-                        //    ClientId = cart.ClientId,
-                        //    ProductId
-                        //})
-                        return response.SetError(Messages.Error.EntitiesNotFound("productos del cliente"));
+                        .First(x => x.Product.TypeId == product.ProductTypeId);
 
                     var cartProduct = cart
                         .Products
@@ -362,7 +357,59 @@ namespace SoderiaLaNueva_Api.Services
                     // Update data with new values
                     clientProduct.Stock += product.SoldQuantity;
                     clientProduct.Stock -= product.ReturnedQuantity;
-                    cart.Client.Debt -= product.SoldQuantity * clientProduct.Product.Price;
+                    cart.Client.Debt += product.SoldQuantity * clientProduct.Product.Price;
+                }
+            }
+
+            // Subscription products
+            if (rq.SubscriptionProducts.Count > 0)
+            {
+                var availableProducts = await _db
+                    .SubscriptionRenewalProduct
+                    .Include(x => x.Type)
+                    .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
+                    .Where(x => x.CreatedAt.Month == cart.CreatedAt.Month)
+                    .Where(x => x.CreatedAt.Year == cart.CreatedAt.Year)
+                    .ToListAsync();
+
+                // Update or add new products
+                foreach (var product in rq.SubscriptionProducts)
+                {
+                    var clientProduct = cart
+                        .Client
+                        .Products
+                        .First(x => x.Product.TypeId == product.ProductTypeId);
+
+                    var cartProduct = cart
+                        .Products
+                        .FirstOrDefault(x => x.ProductTypeId == product.ProductTypeId);
+
+                    var availableType = availableProducts
+                        .Where(x => x.ProductTypeId == product.ProductTypeId)
+                        .FirstOrDefault();
+
+                    // Recalculate the available quantity in the first product of the type
+                    if (availableType is not null)
+                    {
+                        if (availableProducts.Where(x => x.ProductTypeId == product.ProductTypeId).Sum(x => x.AvailableQuantity) < product.Quantity)
+                            return response.SetError(Messages.Error.NotAvailableSubscription($"{availableType.Type.Name}"));
+
+                        availableType.AvailableQuantity -= product.Quantity;
+                        availableType.AvailableQuantity += cartProduct?.SubscriptionQuantity ?? 0;
+                    }
+
+                    // Restore previous data and update cart product
+                    if (cartProduct is not null)
+                    {
+                        clientProduct.Stock -= cartProduct.SubscriptionQuantity;
+
+                        cartProduct.SubscriptionQuantity = product.Quantity;
+                        cartProduct.SettedPrice = clientProduct.Product.Price;
+                        cartProduct.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    // Update data with new values
+                    clientProduct.Stock += product.Quantity;
                 }
             }
 
@@ -378,8 +425,8 @@ namespace SoderiaLaNueva_Api.Services
 
                     if (cartMethod is not null)
                     {
-                        cart.Client.Debt -= cartMethod.Amount;
-                        cart.Client.Debt += method.Amount;
+                        cart.Client.Debt += cartMethod.Amount;
+                        cart.Client.Debt -= method.Amount;
                         cartMethod.Amount = method.Amount;
                         cartMethod.UpdatedAt = DateTime.UtcNow;
                     }
@@ -437,8 +484,8 @@ namespace SoderiaLaNueva_Api.Services
                 var availableProducts = await _db
                     .SubscriptionRenewalProduct
                     .Where(x => x.SubscriptionRenewal.ClientId == cart.ClientId)
-                    .Where(x => x.CreatedAt.Month == DateTime.UtcNow.Month)
-                    .Where(x => x.CreatedAt.Year == DateTime.UtcNow.Year)
+                    .Where(x => x.CreatedAt.Month == cart.CreatedAt.Month)
+                    .Where(x => x.CreatedAt.Year == cart.CreatedAt.Year)
                     .ToListAsync();
 
                 foreach (var product in cart.Products)
