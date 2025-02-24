@@ -144,7 +144,20 @@ namespace SoderiaLaNueva_Api.Services
                     Debt = y.Client.Debt,
                     Address = new GetStaticRouteResponse.AddressItem
                     {
-                        HouseNumber = y.Client.Address.HouseNumber
+                        HouseNumber = y.Client.Address.HouseNumber,
+                        Road = y.Client.Address.Road,
+                        Neighbourhood = y.Client.Address.Neighbourhood,
+                        Suburb = y.Client.Address.Suburb,
+                        CityDistrict = y.Client.Address.CityDistrict,
+                        City = y.Client.Address.City,
+                        Town = y.Client.Address.Town,
+                        Village = y.Client.Address.Village,
+                        County = y.Client.Address.County,
+                        State = y.Client.Address.State,
+                        Country = y.Client.Address.Country,
+                        Postcode = y.Client.Address.Postcode,
+                        Lat = y.Client.Address.Lat,
+                        Lon = y.Client.Address.Lon,
                     },
                     Phone = y.Client.Phone,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
@@ -195,7 +208,20 @@ namespace SoderiaLaNueva_Api.Services
                     Name = y.Client.Name,
                     Address = new GetStaticRouteClientsResponse.AddressItem
                     {
-                        HouseNumber = y.Client.Address.HouseNumber
+                        HouseNumber = y.Client.Address.HouseNumber,
+                        Road = y.Client.Address.Road,
+                        Neighbourhood = y.Client.Address.Neighbourhood,
+                        Suburb = y.Client.Address.Suburb,
+                        CityDistrict = y.Client.Address.CityDistrict,
+                        City = y.Client.Address.City,
+                        Town = y.Client.Address.Town,
+                        Village = y.Client.Address.Village,
+                        County = y.Client.Address.County,
+                        State = y.Client.Address.State,
+                        Country = y.Client.Address.Country,
+                        Postcode = y.Client.Address.Postcode,
+                        Lat = y.Client.Address.Lat,
+                        Lon = y.Client.Address.Lon,
                     }
                 }).ToList()
             }).FirstOrDefaultAsync();
@@ -390,7 +416,20 @@ namespace SoderiaLaNueva_Api.Services
                         Name = y.Client.Name,
                         Address = new GetDynamicRouteResponse.CartItem.AddressItem
                         {
-                            HouseNumber = y.Client.Address.HouseNumber
+                            HouseNumber = y.Client.Address.HouseNumber,
+                            Road = y.Client.Address.Road,
+                            Neighbourhood = y.Client.Address.Neighbourhood,
+                            Suburb = y.Client.Address.Suburb,
+                            CityDistrict = y.Client.Address.CityDistrict,
+                            City = y.Client.Address.City,
+                            Town = y.Client.Address.Town,
+                            Village = y.Client.Address.Village,
+                            County = y.Client.Address.County,
+                            State = y.Client.Address.State,
+                            Country = y.Client.Address.Country,
+                            Postcode = y.Client.Address.Postcode,
+                            Lat = y.Client.Address.Lat,
+                            Lon = y.Client.Address.Lon,
                         },
                         Phone = y.Client.Phone,
                         Debt = y.Client.Debt,
@@ -693,6 +732,12 @@ namespace SoderiaLaNueva_Api.Services
             if (route is null)
                 return response.SetError(Messages.Error.EntityNotFound("Ruta", true));
 
+            var newClients = await _db
+                .Client
+                .Include(x => x.Address)
+                .Where(x => rq.Clients.Contains(x.Id) && !route.Carts.Select(y => y.ClientId).Contains(x.Id))
+                .ToListAsync();
+
             var cartsToRemove = route
                 .Carts
                 .Where(x => !rq.Clients.Contains(x.ClientId))
@@ -715,10 +760,10 @@ namespace SoderiaLaNueva_Api.Services
                 x.Client.DeliveryDay = null;
                 x.DeletedAt = DateTime.UtcNow;
             });
-            route.Carts.ForEach(x =>
+            newClients.ForEach(x =>
             {
-                x.Client.DealerId = route.DealerId;
-                x.Client.DeliveryDay = route.DeliveryDay;
+                x.DealerId = route.DealerId;
+                x.DeliveryDay = route.DeliveryDay;
             });
 
             // Save changes
