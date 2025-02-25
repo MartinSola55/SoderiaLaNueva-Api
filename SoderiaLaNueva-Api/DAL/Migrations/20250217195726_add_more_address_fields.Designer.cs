@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SoderiaLaNueva_Api.DAL.DB;
@@ -11,9 +12,11 @@ using SoderiaLaNueva_Api.DAL.DB;
 namespace SoderiaLaNueva_Api.Migrations
 {
     [DbContext(typeof(APIContext))]
-    partial class APIContextModelSnapshot : ModelSnapshot
+    [Migration("20250217195726_add_more_address_fields")]
+    partial class add_more_address_fields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -74,14 +77,15 @@ namespace SoderiaLaNueva_Api.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("HouseNumber")
-                        .HasColumnType("text");
-
                     b.Property<string>("Lat")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Lon")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NameNumber")
                         .IsRequired()
                         .HasColumnType("text");
 

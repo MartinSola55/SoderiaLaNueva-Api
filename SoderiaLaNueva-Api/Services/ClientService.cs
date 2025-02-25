@@ -1,10 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Humanizer;
+using Microsoft.CodeAnalysis.Elfie.Serialization;
+using Microsoft.EntityFrameworkCore;
+using Mono.TextTemplating;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
 using System.Data;
+using System.Diagnostics.Metrics;
 using System.Linq;
 
 namespace SoderiaLaNueva_Api.Services
@@ -77,6 +81,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Client
                 .Include(x => x.Dealer)
+                .Include(x => x.Address)
                 .Where(x => x.IsActive)
                 .AsQueryable();
 
@@ -92,7 +97,23 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Id = x.Id,
                         Name = x.Name,
-                        Address = x.Address,
+                        Address = new GetAllResponse.AddressItem
+                        {
+                            HouseNumber = x.Address.HouseNumber ?? "",
+                            Road = x.Address.Road ?? "",
+                            Neighbourhood = x.Address.Neighbourhood ?? "",
+                            Suburb = x.Address.Suburb ?? "",
+                            CityDistrict = x.Address.CityDistrict ?? "",
+                            City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                            Town = x.Address.Town ?? "",
+                            Village = x.Address.Village ?? "",
+                            County = x.Address.County ?? "",
+                            State = x.Address.State ?? "",
+                            Country = x.Address.Country ?? "",
+                            Postcode = x.Address.Postcode ?? "",
+                            Lat = x.Address.Lat,
+                            Lon = x.Address.Lon
+                        },
                         Debt = x.Debt,
                         Phone = x.Phone,
                         DeliveryDay = x.DeliveryDay,
@@ -101,7 +122,7 @@ namespace SoderiaLaNueva_Api.Services
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
                     .ToListAsync()
-            }
+                }
             };
             return response;
         }
@@ -112,6 +133,7 @@ namespace SoderiaLaNueva_Api.Services
 
             var client = await _db
                 .Client
+                .Include(x => x.Address)
                 .Include(x => x.Products)
                     .ThenInclude(x => x.Product)
                         .ThenInclude(x => x.Type)
@@ -121,7 +143,24 @@ namespace SoderiaLaNueva_Api.Services
                     x.Id,
                     x.IsActive,
                     x.Name,
-                    x.Address,
+                    Address = new GetOneResponse.AddressItem
+                    {
+                        Id = x.Id,
+                        HouseNumber = x.Address.HouseNumber ?? "",
+                        Road = x.Address.Road ?? "",
+                        Neighbourhood = x.Address.Neighbourhood ?? "",
+                        Suburb = x.Address.Suburb ?? "",
+                        CityDistrict = x.Address.CityDistrict ?? "",
+                        City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                        Town = x.Address.Town ?? "",
+                        Village = x.Address.Village ?? "",
+                        County = x.Address.County ?? "",
+                        State = x.Address.State ?? "",
+                        Country = x.Address.Country ?? "",
+                        Postcode = x.Address.Postcode ?? "",
+                        Lat = x.Address.Lat,
+                        Lon = x.Address.Lon
+                    },
                     x.Phone,
                     x.Debt,
                     x.DeliveryDay,
@@ -184,7 +223,23 @@ namespace SoderiaLaNueva_Api.Services
             {
                 DealerId = rq.DealerId,
                 Name = rq.Name,
-                Address = rq.Address,
+                Address = new Address
+                {
+                    HouseNumber = rq.Address.HouseNumber ?? "",
+                    Road = rq.Address.Road ?? "",
+                    Neighbourhood = rq.Address.Neighbourhood ?? "",
+                    Suburb = rq.Address.Suburb ?? "",
+                    CityDistrict = rq.Address.CityDistrict ?? "",
+                    City = rq.Address.City ?? rq.Address.Town ?? rq.Address.Village ?? "",
+                    Town = rq.Address.Town ?? "",
+                    Village = rq.Address.Village ?? "",
+                    County = rq.Address.County ?? "",
+                    State = rq.Address.State ?? "",
+                    Country = rq.Address.Country ?? "",
+                    Postcode = rq.Address.Postcode ?? "",
+                    Lat = rq.Address.Lat,
+                    Lon = rq.Address.Lon
+                },
                 Phone = rq.Phone,
                 Observations = rq.Observations,
                 DeliveryDay = rq.DeliveryDay,
@@ -242,6 +297,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Carts)
                     .ThenInclude(x => x.Route)
                 .Include(x => x.Products)
+                .Include(x => x.Address)
                 .Include(x => x.Transfers)
                 .Include(x => x.Subscriptions)
                 .Include(x => x.SubscriptionRenewals)
@@ -258,6 +314,7 @@ namespace SoderiaLaNueva_Api.Services
             client.Subscriptions.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
             client.Transfers.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
             client.SubscriptionRenewals.ForEach(x => x.DeletedAt = DateTime.UtcNow.AddHours(-3));
+            client.Address.DeletedAt = DateTime.UtcNow.AddHours(-3);
 
             // Save changes
             try
@@ -282,6 +339,7 @@ namespace SoderiaLaNueva_Api.Services
 
             var client = await _db
                 .Client
+                .Include(x => x.Address)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (client is null)
@@ -292,7 +350,6 @@ namespace SoderiaLaNueva_Api.Services
             // Update client
             client.DealerId = rq.DealerId;
             client.Name = rq.Name;
-            client.Address = rq.Address;
             client.Phone = rq.Phone;
             client.Observations = rq.Observations;
             client.DeliveryDay = rq.DeliveryDay;
@@ -302,6 +359,23 @@ namespace SoderiaLaNueva_Api.Services
             client.TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty;
             client.CUIT = rq.HasInvoice ? rq.CUIT : string.Empty;
             client.UpdatedAt = DateTime.UtcNow.AddHours(-3);
+
+            // Address data
+            client.Address.HouseNumber = rq.Address.HouseNumber ?? "";
+            client.Address.Road = rq.Address.Road ?? "";
+            client.Address.Neighbourhood = rq.Address.Neighbourhood ?? "";
+            client.Address.Suburb = rq.Address.Suburb ?? "";
+            client.Address.CityDistrict = rq.Address.CityDistrict ?? "";
+            client.Address.City = rq.Address.City ?? rq.Address.Town ?? rq.Address.Village ?? "";
+            client.Address.Town = rq.Address.Town ?? "";
+            client.Address.Village = rq.Address.Village ?? "";
+            client.Address.County = rq.Address.County ?? "";
+            client.Address.State = rq.Address.State ?? "";
+            client.Address.Country = rq.Address.Country ?? "";
+            client.Address.Postcode = rq.Address.Postcode ?? "";
+            client.Address.Lat = rq.Address.Lat;
+            client.Address.Lon = rq.Address.Lon;
+            client.Address.UpdatedAt = DateTime.UtcNow.AddHours(-3);
 
             // Validate request
             if (!response.Attach(await ValidateFields<UpdateClientDataResponse>(client)).Success)
@@ -503,7 +577,23 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Id = x.Id,
                         Name = x.Name,
-                        Address = x.Address,
+                        Address = new GetAllResponse.AddressItem()
+                        {
+                            HouseNumber = x.Address.HouseNumber ?? "",
+                            Road = x.Address.Road ?? "",
+                            Neighbourhood = x.Address.Neighbourhood ?? "",
+                            Suburb = x.Address.Suburb ?? "",
+                            CityDistrict = x.Address.CityDistrict ?? "",
+                            City = x.Address.City ?? x.Address.Town ?? x.Address.Village ?? "",
+                            Town = x.Address.Town ?? "",
+                            Village = x.Address.Village ?? "",
+                            County = x.Address.County ?? "",
+                            State = x.Address.State ?? "",
+                            Country = x.Address.Country ?? "",
+                            Postcode = x.Address.Postcode ?? "",
+                            Lat = x.Address.Lat,
+                            Lon = x.Address.Lon
+                        },
                         Debt = x.Debt,
                         Phone = x.Phone,
                         DeliveryDay = x.DeliveryDay,
@@ -713,10 +803,10 @@ namespace SoderiaLaNueva_Api.Services
         #region Validations
 
         private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
-        {
+    {
             var response = new GenericResponse<T>();
 
-            if (string.IsNullOrEmpty(entity.Name) || string.IsNullOrEmpty(entity.Address) || string.IsNullOrEmpty(entity.Phone))
+            if (string.IsNullOrEmpty(entity.Name) || entity.Address == null || string.IsNullOrEmpty(entity.Phone))
                 return response.SetError(Messages.Error.FieldsRequired());
 
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
@@ -730,7 +820,7 @@ namespace SoderiaLaNueva_Api.Services
 
             // Check duplicate client. Same CUIT or same name and address
             if (await _db.Client.AnyAsync(x => x.Id != entity.Id && x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
-            || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.ToLower() == entity.Address.ToLower()))))
+            || x.Name.ToLower() == entity.Name.ToLower())))
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
             }

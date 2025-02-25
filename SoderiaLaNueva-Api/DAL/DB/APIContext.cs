@@ -22,6 +22,7 @@ public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContex
         builder.Entity<Cart>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<CartPaymentMethod>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<CartProduct>().HasQueryFilter(x => x.DeletedAt == null);
+        builder.Entity<Address>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Client>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<ClientProduct>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<ClientSubscription>().HasQueryFilter(x => x.DeletedAt == null);
@@ -44,6 +45,7 @@ public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContex
     public DbSet<CartPaymentMethod> CartPaymentMethod { get; set; }
     public DbSet<CartProduct> CartProduct { get; set; }
     public DbSet<Client> Client { get; set; }
+    public DbSet<Address> Address { get; set; }
     public DbSet<ClientProduct> ClientProduct { get; set; }
     public DbSet<ClientSubscription> ClientSubscription { get; set; }
     public DbSet<Expense> Expense { get; set; }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SoderiaLaNueva_Api.DAL.DB;
@@ -11,9 +12,11 @@ using SoderiaLaNueva_Api.DAL.DB;
 namespace SoderiaLaNueva_Api.Migrations
 {
     [DbContext(typeof(APIContext))]
-    partial class APIContextModelSnapshot : ModelSnapshot
+    [Migration("20250217030251_Fixed_Client_Address")]
+    partial class Fixed_Client_Address
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,15 +60,11 @@ namespace SoderiaLaNueva_Api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("City")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CityDistrict")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Country")
-                        .HasColumnType("text");
-
-                    b.Property<string>("County")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -73,9 +72,6 @@ namespace SoderiaLaNueva_Api.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("HouseNumber")
-                        .HasColumnType("text");
 
                     b.Property<string>("Lat")
                         .IsRequired()
@@ -85,29 +81,16 @@ namespace SoderiaLaNueva_Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Neighbourhood")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Postcode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Road")
+                    b.Property<string>("NameNumber")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("State")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Suburb")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Town")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Village")
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
