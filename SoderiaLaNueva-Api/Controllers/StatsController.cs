@@ -11,6 +11,12 @@ namespace SoderiaLaNueva_Api.Controllers
 
         #region Methods
         [HttpGet]
+        public async Task<GenericResponse<GenericComboResponse>> GetSalesYears()
+        {
+            return await _statsService.GetSalesYears();
+        }
+
+        [HttpGet]
         public async Task<GenericResponse<GetAnualSalesResponse>> GetAnualSales([FromQuery] GetAnualSalesRequest rq)
         {
             return await _statsService.GetAnualSales(rq);
