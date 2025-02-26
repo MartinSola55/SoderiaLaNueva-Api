@@ -116,6 +116,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Client
                 .Include(x => x.Carts)
+                .Include(x => x.Address)
                 .Where(x => x.IsActive)
                 .Where(x => x.DealerId == rq.DealerId)
                 .Where(x => x.Carts.Where(y => !y.Route.IsStatic && y.CreatedAt.Date >= rq.DateFrom.Date && y.CreatedAt.Date <= rq.DateTo.Date).All(y => y.Status != CartStatuses.Confirmed))
@@ -130,7 +131,10 @@ namespace SoderiaLaNueva_Api.Services
                     Clients = await query.Select(x => new GetClientsNotVisitedResponse.ClientItem
                     {
                         Name = x.Name,
-                        Address = x.Address,
+                        Address = new GetClientsNotVisitedResponse.AddressItem
+                        {
+                            HouseNumber = x.Address.HouseNumber
+                        },
                     }).ToListAsync()
                 }
             };
@@ -142,6 +146,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var query = _db
                 .Client
+                .Include(x => x.Address)
                 .Where(x => x.IsActive)
                 .Where(x => x.DeliveryDay == rq.DeliveryDay && x.DealerId == rq.DealerId)
                 .OrderBy(x => x.Name)
@@ -207,6 +212,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var query = _db
                 .Client
+                .Include(x => x.Address)
                 .Include(x => x.Products)
                     .ThenInclude(x => x.Product)
                     .ThenInclude(x => x.Type)
@@ -257,6 +263,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var query = _db
                 .Client
+                .Include(x => x.Address)
                 .Where(x => x.IsActive && x.DealerId == rq.DealerId)
                 .AsQueryable();
 

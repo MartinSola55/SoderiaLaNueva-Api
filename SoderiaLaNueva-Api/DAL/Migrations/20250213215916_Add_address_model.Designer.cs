@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SoderiaLaNueva_Api.DAL.DB;
@@ -11,9 +12,11 @@ using SoderiaLaNueva_Api.DAL.DB;
 namespace SoderiaLaNueva_Api.Migrations
 {
     [DbContext(typeof(APIContext))]
-    partial class APIContextModelSnapshot : ModelSnapshot
+    [Migration("20250213215916_Add_address_model")]
+    partial class Add_address_model
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,15 +60,14 @@ namespace SoderiaLaNueva_Api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("City")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("CityDistrict")
-                        .HasColumnType("text");
+                    b.Property<int>("ClientId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Country")
-                        .HasColumnType("text");
-
-                    b.Property<string>("County")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -73,9 +75,6 @@ namespace SoderiaLaNueva_Api.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("HouseNumber")
-                        .HasColumnType("text");
 
                     b.Property<string>("Lat")
                         .IsRequired()
@@ -85,31 +84,21 @@ namespace SoderiaLaNueva_Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Neighbourhood")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Postcode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Road")
+                    b.Property<string>("NameNumber")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("State")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Suburb")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Town")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Village")
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientId")
+                        .IsUnique();
 
                     b.ToTable("Address");
                 });
@@ -320,9 +309,6 @@ namespace SoderiaLaNueva_Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AddressId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("CUIT")
                         .HasColumnType("text");
 
@@ -368,8 +354,6 @@ namespace SoderiaLaNueva_Api.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AddressId");
 
                     b.HasIndex("DealerId");
 
@@ -765,6 +749,17 @@ namespace SoderiaLaNueva_Api.Migrations
                     b.ToTable("Transfer");
                 });
 
+            modelBuilder.Entity("SoderiaLaNueva_Api.Models.Address", b =>
+                {
+                    b.HasOne("SoderiaLaNueva_Api.Models.Client", "Client")
+                        .WithOne("Address")
+                        .HasForeignKey("SoderiaLaNueva_Api.Models.Address", "ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.ApiUser", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", "Role")
@@ -835,17 +830,9 @@ namespace SoderiaLaNueva_Api.Migrations
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.Client", b =>
                 {
-                    b.HasOne("SoderiaLaNueva_Api.Models.Address", "Address")
-                        .WithMany()
-                        .HasForeignKey("AddressId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("SoderiaLaNueva_Api.Models.ApiUser", "Dealer")
                         .WithMany()
                         .HasForeignKey("DealerId");
-
-                    b.Navigation("Address");
 
                     b.Navigation("Dealer");
                 });
@@ -998,6 +985,9 @@ namespace SoderiaLaNueva_Api.Migrations
 
             modelBuilder.Entity("SoderiaLaNueva_Api.Models.Client", b =>
                 {
+                    b.Navigation("Address")
+                        .IsRequired();
+
                     b.Navigation("Carts");
 
                     b.Navigation("Products");

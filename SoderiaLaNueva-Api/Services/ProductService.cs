@@ -269,7 +269,23 @@ namespace SoderiaLaNueva_Api.Services
                 .Select(x => new GetClientListResponse.ClientItem
                 {
                     Name = x.Name,
-                    Address = x.Address,
+                    Address = new GetClientListResponse.AddressItem
+                    {
+                        HouseNumber = x.Address.HouseNumber,
+                        Road = x.Address.Road,
+                        Neighbourhood = x.Address.Neighbourhood,
+                        Suburb = x.Address.Suburb,
+                        CityDistrict = x.Address.CityDistrict,
+                        City = x.Address.City,
+                        Town = x.Address.Town,
+                        Village = x.Address.Village,
+                        County = x.Address.County,
+                        State = x.Address.State,
+                        Country = x.Address.Country,
+                        Postcode = x.Address.Postcode,
+                        Lat = x.Address.Lat,
+                        Lon = x.Address.Lon,
+                    },
                     DealerName = x.Dealer.FullName,
                     DeliveryDay = x.DeliveryDay
                 }).ToListAsync();

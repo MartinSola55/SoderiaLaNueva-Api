@@ -12,9 +12,17 @@
         public class ClientItem
         {
             public string Name { get; set; } = null!;
-            public string Address { get; set; } = null!;
+            public AddressItem Address { get; set; } = null!;
             public string DealerName { get; set; } = null!;
             public int? DeliveryDay { get; set; }
         }
+
+        public class AddressItem
+        {
+            public string? HouseNumber { get; set; }
+            public string? Road { get; set; }
+
+        }
+
     }
 }
