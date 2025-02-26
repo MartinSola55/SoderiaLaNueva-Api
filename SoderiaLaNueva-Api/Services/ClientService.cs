@@ -4,6 +4,7 @@ using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq;
 
@@ -718,6 +719,9 @@ namespace SoderiaLaNueva_Api.Services
 
             if (string.IsNullOrEmpty(entity.Name) || string.IsNullOrEmpty(entity.Address) || string.IsNullOrEmpty(entity.Phone))
                 return response.SetError(Messages.Error.FieldsRequired());
+            
+            if (!ValidatePhone(entity.Phone))
+                return response.SetError(Messages.Error.InvalidPhone());
 
             if (entity.HasInvoice && (string.IsNullOrEmpty(entity.InvoiceType) || string.IsNullOrEmpty(entity.TaxCondition) || string.IsNullOrEmpty(entity.CUIT)))
                 return response.SetError(Messages.Error.FieldsRequired());
@@ -739,6 +743,11 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
 
             return response;
+        }
+
+        private static bool ValidatePhone(string phone)
+        {
+            return new PhoneAttribute().IsValid(phone);
         }
 
         private async Task<GenericResponse<T>> ValidateProducts<T>(List<int> productIds)

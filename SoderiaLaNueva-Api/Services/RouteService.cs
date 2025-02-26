@@ -1,16 +1,12 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
-using SoderiaLaNueva_Api.Models.DAO.Cart;
 using SoderiaLaNueva_Api.Models.DAO.Route;
 using System;
 using System.Data;
-using System.Globalization;
-using System.Security.Cryptography.Xml;
+
 
 namespace SoderiaLaNueva_Api.Services
 {
@@ -743,7 +739,28 @@ namespace SoderiaLaNueva_Api.Services
                 Status = CartStatuses.Confirmed
             };
 
-            _db.Cart.Add(cart);
+            // Delete old client if they were deleted form cart
+            // TODO
+            var deletedCart = await _db
+                .Cart
+                .Include(x => x.Products)
+                .Include(x => x.PaymentMethods)
+                .Where(x => x.ClientId == rq.ClientId && x.RouteId == rq.RouteId)
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync();
+
+            if (deletedCart != null)
+            {
+                _db.CartProduct.RemoveRange(deletedCart.Products);
+                _db.CartPaymentMethod.RemoveRange(deletedCart.PaymentMethods);
+
+                _db.Cart.Remove(deletedCart);
+
+            };
+
+            await _db.Cart.AddAsync(cart);
+
+            await _db.SaveChangesAsync();
 
             var client = await _db.Client
                 .Include(x => x.Products)
@@ -785,7 +802,7 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             // Update data
-            cart.Client.Debt += totalDebt;
+            client.Debt += totalDebt;
 
             // Save changes
             try

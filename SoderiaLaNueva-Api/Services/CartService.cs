@@ -495,16 +495,19 @@ namespace SoderiaLaNueva_Api.Services
                         .Products
                         .FirstOrDefault(x => x.Product.TypeId == product.ProductTypeId);
 
-                    // Subscription products
-                    var availableType = availableProducts
-                        .Where(x => x.ProductTypeId == product.ProductTypeId)
-                        .FirstOrDefault();
+                    if (product.SubscriptionQuantity != 0)
+                    {
+                        // Subscription products
+                        var availableType = availableProducts
+                            .Where(x => x.ProductTypeId == product.ProductTypeId)
+                            .FirstOrDefault();
 
-                    if (availableType is null)
-                        return response.SetError(Messages.Error.EntitiesNotFound("productos del abono"));
-
-                    // Restore the available quantity in the first product of the type
-                    availableType.AvailableQuantity += product.SubscriptionQuantity;
+                        if (availableType is null)
+                            return response.SetError(Messages.Error.EntitiesNotFound("productos del abono"));
+                        else
+                            // Restore the available quantity in the first product of the type
+                            availableType.AvailableQuantity += product.SubscriptionQuantity;
+                    }
 
                     // Restore stock
                     if (clientProduct is not null)
