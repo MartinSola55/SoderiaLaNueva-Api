@@ -12,6 +12,28 @@ namespace SoderiaLaNueva_Api.Services
         private readonly APIContext _db = context;
 
         #region Methods
+        public async Task<GenericResponse<GenericComboResponse>> GetSalesYears()
+        {
+            var years = await _db
+                .Route
+                .Select(route => route.CreatedAt.Year)
+                .Distinct()
+                .OrderByDescending(year => year)
+                .ToListAsync();
+
+            return new GenericResponse<GenericComboResponse>
+            {
+                Data = new GenericComboResponse
+                {
+                    Items = years.Select(year => new GenericComboResponse.Item
+                    {
+                        Id = year,
+                        Description = year.ToString(),
+                    }).ToList()
+                }
+            };
+        }
+
         public async Task<GenericResponse<GetAnualSalesResponse>> GetAnualSales(GetAnualSalesRequest rq)
         {
             var response = new GenericResponse<GetAnualSalesResponse>();
@@ -25,11 +47,21 @@ namespace SoderiaLaNueva_Api.Services
                 .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
                 .Select(group => new
                 {
-                    Period = $"{group.Key.Year}-{group.Key.Month.ToString().PadLeft(2, '0')}",
+                    group.Key.Year,
+                    group.Key.Month,
                     Profit = group.Sum(x => x.PaymentMethods.Sum(y => y.Amount)),
                 })
-                .OrderBy(entry => entry.Period)
+                .OrderBy(entry => entry.Year)
+                .ThenBy(entry => entry.Month)
                 .ToListAsync();
+
+            var result = cartsByMonth
+                .Select(x => new
+                {
+                    Period = $"{x.Year}-{x.Month.ToString().PadLeft(2, '0')}",
+                    x.Profit
+                })
+                .ToList();
 
             var annualProfits = new List<GetAnualSalesResponse.Item>();
 
@@ -38,7 +70,7 @@ namespace SoderiaLaNueva_Api.Services
                 string monthPadded = month.ToString().PadLeft(2, '0');
                 string period = $"{rq.Year}-{monthPadded}";
 
-                var cartsEntry = cartsByMonth.FirstOrDefault(entry => entry.Period == period);
+                var cartsEntry = result.FirstOrDefault(entry => entry.Period == period);
 
                 decimal sold = (cartsEntry?.Profit ?? 0);
 
@@ -123,6 +155,7 @@ namespace SoderiaLaNueva_Api.Services
 
             var types = await _db
                 .ProductType
+                .Where(x => x.Name != ProductTypes.Maquina)
                 .Select(x => new { x.Id, x.Name })
                 .ToListAsync();
 
