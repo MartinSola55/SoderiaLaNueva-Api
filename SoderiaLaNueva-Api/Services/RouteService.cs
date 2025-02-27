@@ -813,12 +813,9 @@ namespace SoderiaLaNueva_Api.Services
                 _db.CartPaymentMethod.RemoveRange(deletedCart.PaymentMethods);
 
                 _db.Cart.Remove(deletedCart);
-
             };
 
-            await _db.Cart.AddAsync(cart);
-
-            await _db.SaveChangesAsync();
+            _db.Cart.Add(cart);
 
             var client = await _db.Client
                 .Include(x => x.Products)
@@ -828,6 +825,8 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente", true));
 
+            var productsToAdd = new List<CartProduct>();
+
             // Paid products
             foreach (var product in rq.Products)
             {
@@ -836,10 +835,10 @@ namespace SoderiaLaNueva_Api.Services
                 // Update client stock
                 clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
                 // Update debt
-                totalDebt += clientProduct.Product.Price * product.SoldQuantity;
+                totalDebt += clientProduct.Product.Price * (product.SoldQuantity - product.ReturnedQuantity);
 
                 // Add product to cart
-                cart.Products.Add(new()
+                productsToAdd.Add(new()
                 {
                     ProductTypeId = product.ProductTypeId,
                     SoldQuantity = product.SoldQuantity,
@@ -866,6 +865,8 @@ namespace SoderiaLaNueva_Api.Services
             try
             {
                 await _db.Database.BeginTransactionAsync();
+                await _db.SaveChangesAsync();
+                cart.Products.AddRange(productsToAdd);
                 await _db.SaveChangesAsync();
                 await _db.Database.CommitTransactionAsync();
             }

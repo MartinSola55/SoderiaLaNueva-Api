@@ -55,7 +55,7 @@ namespace SoderiaLaNueva_Api.Services
         {
             var query = _db
                 .ClientProduct
-                .Include(x => x.Product)
+                .Include(x => x.Product.Type)
                 .Where(x => x.ClientId == rq.Id)
                 .AsQueryable();
 
@@ -66,7 +66,7 @@ namespace SoderiaLaNueva_Api.Services
                     Products = await query.Select(x => new GetClientProductsResponse.ProductItem
                     {
                         ProductId = x.ProductId,
-                        Name = x.Product.Name,
+                        Name = x.Product.Type.Name,
                         Price = x.Product.Price,
 
                     }).ToListAsync()

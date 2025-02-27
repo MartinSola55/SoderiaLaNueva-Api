@@ -106,7 +106,7 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         ProductId= z.ProductId,
                         ProductTypeId= z.Product.TypeId,
-                        Name = z.Product.Name,
+                        Name = z.Product.Type.Name,
                         Price = z.Product.Price,
                         Stock = z.Stock
                     }).ToList(),
@@ -334,9 +334,9 @@ namespace SoderiaLaNueva_Api.Services
                     // Restore previous data and update cart product
                     if (cartProduct is not null)
                     {
-                        clientProduct.Stock -= cartProduct.SoldQuantity;
-                        clientProduct.Stock += cartProduct.ReturnedQuantity;
-                        cart.Client.Debt -= product.SoldQuantity * cartProduct.SettedPrice;
+                        clientProduct.Stock += product.SoldQuantity - cartProduct.SoldQuantity;
+                        clientProduct.Stock -= product.ReturnedQuantity - cartProduct.ReturnedQuantity;
+                        cart.Client.Debt += (product.SoldQuantity - cartProduct.SoldQuantity) * cartProduct.SettedPrice;
 
                         cartProduct.SoldQuantity = product.SoldQuantity;
                         cartProduct.ReturnedQuantity = product.ReturnedQuantity;
@@ -355,9 +355,10 @@ namespace SoderiaLaNueva_Api.Services
                     }
 
                     // Update data with new values
-                    clientProduct.Stock += product.SoldQuantity;
-                    clientProduct.Stock -= product.ReturnedQuantity;
-                    cart.Client.Debt += product.SoldQuantity * clientProduct.Product.Price;
+                    // TODO ASK
+                    //clientProduct.Stock += product.SoldQuantity;
+                    //clientProduct.Stock -= product.ReturnedQuantity;
+                    //cart.Client.Debt += product.SoldQuantity * clientProduct.Product.Price;
                 }
             }
 
@@ -391,17 +392,16 @@ namespace SoderiaLaNueva_Api.Services
                     // Recalculate the available quantity in the first product of the type
                     if (availableType is not null)
                     {
-                        if (availableProducts.Where(x => x.ProductTypeId == product.ProductTypeId).Sum(x => x.AvailableQuantity) < product.Quantity)
+                        if (availableProducts.Where(x => x.ProductTypeId == product.ProductTypeId).Sum(x => x.AvailableQuantity) < (product.Quantity - (cartProduct?.SubscriptionQuantity ?? 0)))
                             return response.SetError(Messages.Error.NotAvailableSubscription($"{availableType.Type.Name}"));
 
-                        availableType.AvailableQuantity -= product.Quantity;
-                        availableType.AvailableQuantity += cartProduct?.SubscriptionQuantity ?? 0;
+                        availableType.AvailableQuantity -= product.Quantity - (cartProduct?.SubscriptionQuantity ?? 0);
                     }
 
                     // Restore previous data and update cart product
                     if (cartProduct is not null)
                     {
-                        clientProduct.Stock -= cartProduct.SubscriptionQuantity;
+                        clientProduct.Stock += (product.Quantity - cartProduct.SubscriptionQuantity);
 
                         cartProduct.SubscriptionQuantity = product.Quantity;
                         cartProduct.SettedPrice = clientProduct.Product.Price;
@@ -409,7 +409,7 @@ namespace SoderiaLaNueva_Api.Services
                     }
 
                     // Update data with new values
-                    clientProduct.Stock += product.Quantity;
+                    clientProduct.Stock += product.Quantity - (cartProduct?.SubscriptionQuantity ?? 0);
                 }
             }
 
@@ -425,8 +425,7 @@ namespace SoderiaLaNueva_Api.Services
 
                     if (cartMethod is not null)
                     {
-                        cart.Client.Debt += cartMethod.Amount;
-                        cart.Client.Debt -= method.Amount;
+                        cart.Client.Debt -= method.Amount - cartMethod.Amount;
                         cartMethod.Amount = method.Amount;
                         cartMethod.UpdatedAt = DateTime.UtcNow;
                     }
