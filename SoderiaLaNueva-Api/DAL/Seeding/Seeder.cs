@@ -42,6 +42,8 @@ namespace SoderiaLaNueva_Api.DAL.Seeding
                 _userManager.CreateAsync(admin, _config["AdminPassword"] ?? "Password1!").GetAwaiter().GetResult();
 
                 SeedProductTypes();
+
+                SeedPaymentMethods();
             }
             catch (Exception)
             {
@@ -53,6 +55,15 @@ namespace SoderiaLaNueva_Api.DAL.Seeding
         private void SeedProductTypes()
         {
             _db.ProductType.AddRange(ProductTypes.GetProductTypes().Select(x => new ProductType() { Name = x }));
+
+            _db.SaveChanges();
+        }
+        private void SeedPaymentMethods()
+        {
+            _db.PaymentMethod.AddRange(
+                new PaymentMethod { Name = "Efectivo" },
+                new PaymentMethod { Name = "Mercado Pago" }
+            );
 
             _db.SaveChanges();
         }

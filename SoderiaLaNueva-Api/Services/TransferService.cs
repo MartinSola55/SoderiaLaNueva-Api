@@ -164,8 +164,8 @@ namespace SoderiaLaNueva_Api.Services
         {
             if (rq.DateFrom <= rq.DateTo)
             {
-                var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom, DateTimeKind.Utc).Date;
-                var dateToUTC = DateTime.SpecifyKind(rq.DateTo, DateTimeKind.Utc).Date.AddDays(1);
+                var dateFromUTC = DateTime.SpecifyKind(rq.DateFrom.Date.AddHours(3), DateTimeKind.Utc);
+                var dateToUTC = DateTime.SpecifyKind(rq.DateTo.Date.AddDays(1).AddHours(3), DateTimeKind.Utc);
 
                 query = query.Where(x => x.CreatedAt >= dateFromUTC && x.CreatedAt < dateToUTC);
             }

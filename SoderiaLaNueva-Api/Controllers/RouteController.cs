@@ -99,7 +99,6 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = Policies.Admin)]
         public async Task<GenericResponse> AddClient([FromBody] AddClientRequest rq)
         {
             return await _routeService.AddClient(rq);
