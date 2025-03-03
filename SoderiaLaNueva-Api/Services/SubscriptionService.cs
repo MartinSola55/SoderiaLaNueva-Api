@@ -316,9 +316,9 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse> RenewByRoute(RenewByRouteRequest rq)
+        public async Task<GenericResponse<RenewByRouteResponse>> RenewByRoute(RenewByRouteRequest rq)
         {
-            var response = new GenericResponse();
+            var response = new GenericResponse<RenewByRouteResponse>();
             var today = DateTime.UtcNow.AddHours(-3);
 
             if (!await _db.Route.AnyAsync(x => x.Id == rq.RouteId && x.IsStatic))
@@ -396,6 +396,15 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.Operations.SubscriptionRenewed();
+
+            response.Data = new RenewByRouteResponse
+            {
+                ClientDebts = subscriptionsToRenew.Select(x => new RenewByRouteResponse.ClientDebt
+                {
+                    ClienId = x.Id,
+                    Debt = x.Client.Debt
+                }).ToList()
+            };
 
             return response;
         }

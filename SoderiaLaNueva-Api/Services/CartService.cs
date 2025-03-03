@@ -42,7 +42,6 @@ namespace SoderiaLaNueva_Api.Services
                 Data = new GetFormDataResponse
                 {
                     CartStatuses = CartStatuses.GetCartStatuses(),
-                    CartTransfersTypes = CartsTransfersType.GetCartsTransfersTypes(),
                     CartPaymentStatuses = PaymentStatuses.GetPaymentStatuses(),
                 }
             };
@@ -353,12 +352,6 @@ namespace SoderiaLaNueva_Api.Services
                             SettedPrice = clientProduct.Product.Price,
                         });
                     }
-
-                    // Update data with new values
-                    // TODO ASK
-                    //clientProduct.Stock += product.SoldQuantity;
-                    //clientProduct.Stock -= product.ReturnedQuantity;
-                    //cart.Client.Debt += product.SoldQuantity * clientProduct.Product.Price;
                 }
             }
 

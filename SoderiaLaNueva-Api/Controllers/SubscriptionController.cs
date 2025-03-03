@@ -60,7 +60,7 @@ namespace SoderiaLaNueva_Api.Controllers
         }
         
         [HttpPost]
-        public async Task<GenericResponse> RenewByRoute([FromBody] RenewByRouteRequest rq)
+        public async Task<GenericResponse<RenewByRouteResponse>> RenewByRoute([FromBody] RenewByRouteRequest rq)
         {
             return await _subscriptionService.RenewByRoute(rq);
         }
