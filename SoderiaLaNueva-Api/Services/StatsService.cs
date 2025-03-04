@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Stats;
@@ -275,6 +276,105 @@ namespace SoderiaLaNueva_Api.Services
                         expenses,
                     },
                 },
+            };
+        }
+
+        public async Task<GenericResponse<GetDealerMonthlyStatsResponse>> GetDealerMonthlyStats(GetDealerMonthlyStatsRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.PaymentMethods)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Month == DateTime.UtcNow.Month)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var completedCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => x.Status == CartStatuses.Confirmed)
+                .ToList();
+
+            var incompleteCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => !completedCarts.Select(x => x.Id).Contains(x.Id))
+                .ToList();
+
+            var totalAmt = routes
+                .SelectMany(x => x.Carts)
+                .SelectMany(x => x.PaymentMethods)
+                .Sum(x => x.Amount);
+
+            return new GenericResponse<GetDealerMonthlyStatsResponse>()
+            {
+                Data = new GetDealerMonthlyStatsResponse()
+                {
+                    TotalAmount = totalAmt,
+                    CompletedCarts = completedCarts.Count,
+                    IncompleteCarts = incompleteCarts.Count
+                },
+            };
+        }
+
+        public async Task<GenericResponse<SoldProductsByRangeResponse>> SoldProductsByRange(SoldProductsByRangeRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Products)
+                        .ThenInclude(x => x.Type)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt >= rq.DateFrom && x.CreatedAt <= rq.DateTo)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var products = routes
+                .SelectMany(x => x.Carts)
+                .SelectMany(x => x.Products)
+                .GroupBy(x => new { x.ProductTypeId, x.Type.Name })
+                .Select(g => new
+                {
+                    ProductTypeId = g.Key,
+                    g.Key.Name,
+                    Total = g.Sum(p => (p.SoldQuantity + p.SubscriptionQuantity) * p.SettedPrice),
+                    Amount = g.Sum(p => p.SoldQuantity + p.SubscriptionQuantity)
+                })
+                .ToList();
+
+            return new GenericResponse<SoldProductsByRangeResponse>()
+            {
+                Data = new SoldProductsByRangeResponse
+                {
+                    Products = products.Select(x => new SoldProductsByRangeResponse.ProductItem
+                    {
+                        Name = x.Name,
+                        Total = x.Total,
+                        Amount = x.Amount
+                    }).ToList()
+                }
+            };
+        }
+
+        public async Task<GenericResponse<ClientsDebtResponse>> ClientsDebt(ClientsDebtRequest rq)
+        {
+            var clients = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                .Where(x => x.IsStatic && x.DealerId == rq.DealerId && x.DeliveryDay == rq.DeliveryDay)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client)
+                .ToListAsync();
+
+
+            return new GenericResponse<ClientsDebtResponse>()
+            {
+                Data = new ClientsDebtResponse
+                {
+                    Clients = clients.Select(x => new ClientsDebtResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Debt = x.Debt
+                    }).ToList()
+                }
             };
         }
         #endregion
