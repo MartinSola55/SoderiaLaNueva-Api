@@ -6,6 +6,7 @@
         public int DeliveryDay { get; set; }
 
     }
+    
     public class ClientsDebtResponse
     {
         public List<ClientItem> Clients { get; set; } = [];

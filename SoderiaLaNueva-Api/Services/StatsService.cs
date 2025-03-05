@@ -322,7 +322,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Include(x => x.Carts)
                     .ThenInclude(x => x.Products)
                         .ThenInclude(x => x.Type)
-                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt >= rq.DateFrom && x.CreatedAt <= rq.DateTo)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Date >= rq.DateFrom.Date && x.CreatedAt.Date <= rq.DateTo.Date)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -352,6 +352,52 @@ namespace SoderiaLaNueva_Api.Services
                 }
             };
         }
+        public async Task<GenericResponse<NonVisitedClientsResponse>> NonVisitedClients(NonVisitedClientsRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client.Address)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Date >= rq.DateFrom.Date && x.CreatedAt.Date <= rq.DateTo.Date)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var allClients = routes
+                .SelectMany(x => x.Carts)
+                .Select(x => x.ClientId)
+                .Distinct()
+                .ToList();
+
+            var nonVisitedCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => x.Status != CartStatuses.Pending && x.Status != CartStatuses.Confirmed)
+                .Select(x => new { x.ClientId, x.Client.Name, x.Client.Address.City })
+                .GroupBy(x => x.ClientId)
+                .Select(g => new
+                {
+                    ClientId = g.Key,
+                    g.First().Name,
+                    g.First().City,
+                    Count = g.Count()
+                })
+                .ToList();
+
+            //TODO PONER TODA DIRECCION
+
+            return new GenericResponse<NonVisitedClientsResponse>()
+            {
+                Data = new NonVisitedClientsResponse
+                {
+                    Total = allClients.Count,
+                    NonVisited = nonVisitedCarts.Count,
+                    Clients = nonVisitedCarts.Select(x => new NonVisitedClientsResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Address = x.City,
+                    }).ToList()
+                }
+            };
+        }
 
         public async Task<GenericResponse<ClientsDebtResponse>> ClientsDebt(ClientsDebtRequest rq)
         {
@@ -364,7 +410,6 @@ namespace SoderiaLaNueva_Api.Services
                 .Select(x => x.Client)
                 .ToListAsync();
 
-
             return new GenericResponse<ClientsDebtResponse>()
             {
                 Data = new ClientsDebtResponse
@@ -373,6 +418,43 @@ namespace SoderiaLaNueva_Api.Services
                     {
                         Name = x.Name,
                         Debt = x.Debt
+                    }).ToList()
+                }
+            };
+        }
+
+        public async Task<GenericResponse<ClientsStockResponse>> ClientsStock(ClientsStockRequest rq)
+        {
+            var clients = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                        .ThenInclude(x => x.Products)
+                            .ThenInclude(x => x.Product.Type)
+                .Where(x => x.IsStatic && x.DealerId == rq.DealerId)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client)
+                .ToListAsync();
+
+            var products = clients
+                .SelectMany(x => x.Products)
+                .GroupBy(x => new {x.Product.TypeId , x.Product.Type.Name})
+                .Select(g => new
+                {
+                    ProductTypeId = g.Key,
+                    g.Key.Name,
+                    Stock = g.Sum(p => p.Stock),
+                })
+                .ToList();
+
+            return new GenericResponse<ClientsStockResponse>()
+            {
+                Data = new ClientsStockResponse
+                {
+                    Products = products.Select(x => new ClientsStockResponse.ProductItem
+                    {
+                        Name = x.Name,
+                        Stock = x.Stock
                     }).ToList()
                 }
             };
