@@ -1,7 +1,5 @@
 ﻿using Humanizer;
-using Microsoft.CodeAnalysis.Elfie.Serialization;
 using Microsoft.EntityFrameworkCore;
-using Mono.TextTemplating;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
@@ -9,8 +7,6 @@ using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.Diagnostics.Metrics;
-using System.Linq;
 
 namespace SoderiaLaNueva_Api.Services
 {
@@ -65,7 +61,7 @@ namespace SoderiaLaNueva_Api.Services
                 {
                     Products = await query.Select(x => new GetClientProductsResponse.ProductItem
                     {
-                        ProductId = x.ProductId,
+                        ProductId = x.Product.Type.Id,
                         Name = x.Product.Type.Name,
                         Price = x.Product.Price,
 
@@ -466,9 +462,9 @@ namespace SoderiaLaNueva_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse> UpdateClientSubscriptions(UpdateClientSubscriptionsRequest rq)
+        public async Task<GenericResponse<UpdateClientSubscriptionsResponse>> UpdateClientSubscriptions(UpdateClientSubscriptionsRequest rq)
         {
-            var response = new GenericResponse();
+            var response = new GenericResponse<UpdateClientSubscriptionsResponse>();
 
             var client = await _db
                 .Client
@@ -478,7 +474,7 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
 
-            if (!await _db.Subscription.AnyAsync(x => rq.SubscriptionIds.Contains(x.Id)))
+            if (rq.SubscriptionIds.Count > 0 && !await _db.Subscription.AnyAsync(x => rq.SubscriptionIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("abonos"));
 
             var deletedSubscriptions = client.Subscriptions.Where(x => !rq.SubscriptionIds.Contains(x.SubscriptionId)).ToList();
@@ -523,7 +519,15 @@ namespace SoderiaLaNueva_Api.Services
                         .FirstOrDefaultAsync(x => x.TypeId == subscriptionProduct.ProductTypeId);
 
                     if (product is null)
-                        return response.SetError(Messages.Error.ProductDoesNotExistsForType());
+                    {
+                        var productTypeName = await _db
+                            .ProductType
+                            .Where(x => x.Id == subscriptionProduct.ProductTypeId)
+                            .Select(x => x.Name)
+                            .FirstAsync();
+
+                        return response.SetError(Messages.Error.ProductDoesNotExistsForType(productTypeName));
+                    }
 
                     _db.ClientProduct.Add(new ClientProduct
                     {
@@ -549,6 +553,15 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.CRUD.EntitiesUpdated("Abonos");
+            response.Data = new UpdateClientSubscriptionsResponse
+            {
+                Products = client.Products.Select(x => new UpdateClientSubscriptionsResponse.ProductItem
+                {
+                    ProductId = x.ProductId,
+                    Stock = x.Stock
+                }).ToList()
+            };
+
             return response;
         }
         #endregion

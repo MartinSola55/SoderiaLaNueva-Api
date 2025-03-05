@@ -95,6 +95,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public class PaymentItem
             {
                 public string Name { get; set; } = null!;
+                public int Id { get; set; }
                 public decimal Amount { get; set; }
             }
 

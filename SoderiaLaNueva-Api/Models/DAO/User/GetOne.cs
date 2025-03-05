@@ -14,6 +14,6 @@ namespace SoderiaLaNueva_Api.Models.DAO.User
         public string Role { get; set; } = null!;
         public string? PhoneNumber { get; set; } 
         public string CreatedAt { get; set; } = null!;
-
+        public string RoleName { get; set; } = null!;
     }
 }

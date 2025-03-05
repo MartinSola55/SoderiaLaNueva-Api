@@ -67,7 +67,7 @@ namespace SoderiaLaNueva_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<GenericResponse> UpdateClientSubscriptions([FromBody] UpdateClientSubscriptionsRequest rq)
+        public async Task<GenericResponse<UpdateClientSubscriptionsResponse>> UpdateClientSubscriptions([FromBody] UpdateClientSubscriptionsRequest rq)
         {
             return await _clientService.UpdateClientSubscriptions(rq);
         }

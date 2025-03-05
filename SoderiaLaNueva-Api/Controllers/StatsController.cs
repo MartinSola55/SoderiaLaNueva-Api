@@ -46,6 +46,35 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _statsService.GetBalanceByDay(rq);
         }
 
+        [HttpGet]
+        public async Task<GenericResponse<GetDealerMonthlyStatsResponse>> GetDealerMonthlyStats([FromQuery] GetDealerMonthlyStatsRequest rq)
+        {
+            return await _statsService.GetDealerMonthlyStats(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<SoldProductsByRangeResponse>> SoldProductsByRange([FromQuery] SoldProductsByRangeRequest rq)
+        {
+            return await _statsService.SoldProductsByRange(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<ClientsDebtResponse>> ClientsDebt([FromQuery] ClientsDebtRequest rq)
+        {
+            return await _statsService.ClientsDebt(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<ClientsStockResponse>> ClientsStock([FromQuery] ClientsStockRequest rq)
+        {
+            return await _statsService.ClientsStock(rq);
+        }
+
+        [HttpGet]
+        public async Task<GenericResponse<NonVisitedClientsResponse>> NonVisitedClients([FromQuery] NonVisitedClientsRequest rq)
+        {
+            return await _statsService.NonVisitedClients(rq);
+        }
         #endregion
     }
 }

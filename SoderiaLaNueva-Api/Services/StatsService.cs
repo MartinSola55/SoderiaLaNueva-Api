@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
+using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Stats;
@@ -275,6 +276,187 @@ namespace SoderiaLaNueva_Api.Services
                         expenses,
                     },
                 },
+            };
+        }
+
+        public async Task<GenericResponse<GetDealerMonthlyStatsResponse>> GetDealerMonthlyStats(GetDealerMonthlyStatsRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.PaymentMethods)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Month == DateTime.UtcNow.Month)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var completedCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => x.Status == CartStatuses.Confirmed)
+                .ToList();
+
+            var incompleteCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => !completedCarts.Select(x => x.Id).Contains(x.Id))
+                .ToList();
+
+            var totalAmt = routes
+                .SelectMany(x => x.Carts)
+                .SelectMany(x => x.PaymentMethods)
+                .Sum(x => x.Amount);
+
+            return new GenericResponse<GetDealerMonthlyStatsResponse>()
+            {
+                Data = new GetDealerMonthlyStatsResponse()
+                {
+                    TotalAmount = totalAmt,
+                    CompletedCarts = completedCarts.Count,
+                    IncompleteCarts = incompleteCarts.Count
+                },
+            };
+        }
+
+        public async Task<GenericResponse<SoldProductsByRangeResponse>> SoldProductsByRange(SoldProductsByRangeRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Products)
+                        .ThenInclude(x => x.Type)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Date >= rq.DateFrom.Date && x.CreatedAt.Date <= rq.DateTo.Date)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var products = routes
+                .SelectMany(x => x.Carts)
+                .SelectMany(x => x.Products)
+                .GroupBy(x => new { x.ProductTypeId, x.Type.Name })
+                .Select(g => new
+                {
+                    ProductTypeId = g.Key,
+                    g.Key.Name,
+                    Total = g.Sum(p => (p.SoldQuantity + p.SubscriptionQuantity) * p.SettedPrice),
+                    Amount = g.Sum(p => p.SoldQuantity + p.SubscriptionQuantity)
+                })
+                .ToList();
+
+            return new GenericResponse<SoldProductsByRangeResponse>()
+            {
+                Data = new SoldProductsByRangeResponse
+                {
+                    Products = products.Select(x => new SoldProductsByRangeResponse.ProductItem
+                    {
+                        Name = x.Name,
+                        Total = x.Total,
+                        Amount = x.Amount
+                    }).ToList()
+                }
+            };
+        }
+        public async Task<GenericResponse<NonVisitedClientsResponse>> NonVisitedClients(NonVisitedClientsRequest rq)
+        {
+            var routes = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client.Address)
+                .Where(x => !x.IsStatic && x.DealerId == rq.DealerId && x.CreatedAt.Date >= rq.DateFrom.Date && x.CreatedAt.Date <= rq.DateTo.Date)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var allClients = routes
+                .SelectMany(x => x.Carts)
+                .Select(x => x.ClientId)
+                .Distinct()
+                .ToList();
+
+            var nonVisitedCarts = routes
+                .SelectMany(x => x.Carts)
+                .Where(x => x.Status != CartStatuses.Pending && x.Status != CartStatuses.Confirmed)
+                .Select(x => new { x.ClientId, x.Client.Name, x.Client.Address.City })
+                .GroupBy(x => x.ClientId)
+                .Select(g => new
+                {
+                    ClientId = g.Key,
+                    g.First().Name,
+                    g.First().City,
+                    Count = g.Count()
+                })
+                .ToList();
+
+            //TODO PONER TODA DIRECCION
+
+            return new GenericResponse<NonVisitedClientsResponse>()
+            {
+                Data = new NonVisitedClientsResponse
+                {
+                    Total = allClients.Count,
+                    NonVisited = nonVisitedCarts.Count,
+                    Clients = nonVisitedCarts.Select(x => new NonVisitedClientsResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Address = x.City,
+                    }).ToList()
+                }
+            };
+        }
+
+        public async Task<GenericResponse<ClientsDebtResponse>> ClientsDebt(ClientsDebtRequest rq)
+        {
+            var clients = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                .Where(x => x.IsStatic && x.DealerId == rq.DealerId && x.DeliveryDay == rq.DeliveryDay)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client)
+                .ToListAsync();
+
+            return new GenericResponse<ClientsDebtResponse>()
+            {
+                Data = new ClientsDebtResponse
+                {
+                    Clients = clients.Select(x => new ClientsDebtResponse.ClientItem
+                    {
+                        Name = x.Name,
+                        Debt = x.Debt
+                    }).ToList()
+                }
+            };
+        }
+
+        public async Task<GenericResponse<ClientsStockResponse>> ClientsStock(ClientsStockRequest rq)
+        {
+            var clients = await _db
+                .Route
+                .Include(x => x.Carts)
+                    .ThenInclude(x => x.Client)
+                        .ThenInclude(x => x.Products)
+                            .ThenInclude(x => x.Product.Type)
+                .Where(x => x.IsStatic && x.DealerId == rq.DealerId)
+                .SelectMany(x => x.Carts)
+                .Select(x => x.Client)
+                .ToListAsync();
+
+            var products = clients
+                .SelectMany(x => x.Products)
+                .GroupBy(x => new {x.Product.TypeId , x.Product.Type.Name})
+                .Select(g => new
+                {
+                    ProductTypeId = g.Key,
+                    g.Key.Name,
+                    Stock = g.Sum(p => p.Stock),
+                })
+                .ToList();
+
+            return new GenericResponse<ClientsStockResponse>()
+            {
+                Data = new ClientsStockResponse
+                {
+                    Products = products.Select(x => new ClientsStockResponse.ProductItem
+                    {
+                        Name = x.Name,
+                        Stock = x.Stock
+                    }).ToList()
+                }
             };
         }
         #endregion

@@ -121,7 +121,8 @@ namespace SoderiaLaNueva_Api.Services
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
                 CreatedAt = user.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                Role = user.Role.Id
+                Role = user.Role.Id,
+                RoleName = user.Role?.Name.ToUpper() ?? ""
             };
 
             return response;

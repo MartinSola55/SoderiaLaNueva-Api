@@ -392,7 +392,8 @@ namespace SoderiaLaNueva_Api.Services
                     PaymentMethods = y.PaymentMethods.Select(pm => new GetDynamicRouteResponse.CartItem.PaymentItem
                     {
                         Name = pm.PaymentMethod.Name,
-                        Amount = pm.Amount
+                        Amount = pm.Amount,
+                        Id = pm.PaymentMethodId
                     }).ToList(),
                     Products = y.Products
                     .Where(y => y.Type.Name != ProductTypes.Maquina)
@@ -798,7 +799,6 @@ namespace SoderiaLaNueva_Api.Services
             };
 
             // Delete old client if they were deleted form cart
-            // TODO
             var deletedCart = await _db
                 .Cart
                 .Include(x => x.Products)
@@ -811,11 +811,8 @@ namespace SoderiaLaNueva_Api.Services
             {
                 _db.CartProduct.RemoveRange(deletedCart.Products);
                 _db.CartPaymentMethod.RemoveRange(deletedCart.PaymentMethods);
-
                 _db.Cart.Remove(deletedCart);
             };
-
-            _db.Cart.Add(cart);
 
             var client = await _db.Client
                 .Include(x => x.Products)
@@ -825,12 +822,10 @@ namespace SoderiaLaNueva_Api.Services
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente", true));
 
-            var productsToAdd = new List<CartProduct>();
-
             // Paid products
             foreach (var product in rq.Products)
             {
-                var clientProduct = client.Products.First(x => x.ProductId == product.ProductTypeId);
+                var clientProduct = client.Products.First(x => x.Product.TypeId == product.ProductTypeId);
 
                 // Update client stock
                 clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
@@ -838,7 +833,7 @@ namespace SoderiaLaNueva_Api.Services
                 totalDebt += clientProduct.Product.Price * (product.SoldQuantity - product.ReturnedQuantity);
 
                 // Add product to cart
-                productsToAdd.Add(new()
+                cart.Products.Add(new()
                 {
                     ProductTypeId = product.ProductTypeId,
                     SoldQuantity = product.SoldQuantity,
@@ -862,11 +857,10 @@ namespace SoderiaLaNueva_Api.Services
             client.Debt += totalDebt;
 
             // Save changes
+            _db.Cart.Add(cart);
             try
             {
                 await _db.Database.BeginTransactionAsync();
-                await _db.SaveChangesAsync();
-                cart.Products.AddRange(productsToAdd);
                 await _db.SaveChangesAsync();
                 await _db.Database.CommitTransactionAsync();
             }
