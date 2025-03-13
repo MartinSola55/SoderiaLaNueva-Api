@@ -62,6 +62,7 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Product
                 .Include(x => x.Type)
+                .IgnoreQueryFilters()
                 .AsQueryable();
 
             query = FilterQuery(query, rq);
@@ -89,6 +90,7 @@ namespace SoderiaLaNueva_Api.Services
                         Price = x.Price,
                         Type = x.Type.Name,
                         CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                        IsActive = x.DeletedAt == null,
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
@@ -141,11 +143,12 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
             // Duplicate product
-            if (await _db.Product.AnyAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId))
-                return response.SetError(Messages.Error.DuplicateEntity("producto y tipo"));
+            var duplicatedProduct = await _db.Product.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId);
+            if (duplicatedProduct != null)
+                return response.SetError($"{Messages.Error.DuplicateEntity("producto y tipo")} ({(duplicatedProduct.DeletedAt == null ? "Activo" : "Inactivo")})");
 
             // Save changes
-           _db.Product.Add(product);
+            _db.Product.Add(product);
             try
             {
                 await _db.Database.BeginTransactionAsync();
@@ -231,6 +234,7 @@ namespace SoderiaLaNueva_Api.Services
 
             // Retrieve product
             var product = await _db.Product.FirstOrDefaultAsync(x => x.Id == rq.Id);
+
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
 
@@ -251,6 +255,39 @@ namespace SoderiaLaNueva_Api.Services
             }
 
             response.Message = Messages.CRUD.EntityDeleted("Producto");
+            return response;
+        }
+
+        public async Task<GenericResponse> Activate(ActivateRequest rq)
+        {
+            var response = new GenericResponse();
+
+            // Retrieve product
+            var product = await _db
+                .Product
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+
+            if (product == null)
+                return response.SetError(Messages.Error.EntityNotFound("Producto"));
+
+            // Delete product
+            product.DeletedAt = null;
+
+            // Save changes
+            try
+            {
+                await _db.Database.BeginTransactionAsync();
+                await _db.SaveChangesAsync();
+                await _db.Database.CommitTransactionAsync();
+            }
+            catch (Exception)
+            {
+                await _db.Database.RollbackTransactionAsync();
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.CRUD.EntityActivated("Producto");
             return response;
         }
 
@@ -370,6 +407,23 @@ namespace SoderiaLaNueva_Api.Services
 
                 query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
             }
+
+            if (rq.Statuses.Count > 0)
+            {
+                if (rq.Statuses.Contains("active") && !rq.Statuses.Contains("inactive"))
+                {
+                    query = query.Where(x => x.DeletedAt == null);
+                }
+                else if (rq.Statuses.Contains("inactive") && !rq.Statuses.Contains("active"))
+                {
+                    query = query.Where(x => x.DeletedAt != null);
+                }
+            }
+            else
+            {
+                query = query.Where(x => x.DeletedAt == null);
+            }
+
 
             return query;
         }
