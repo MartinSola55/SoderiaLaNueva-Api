@@ -37,6 +37,7 @@ namespace SoderiaLaNueva_Api.Services
         public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
         {
             var items = await _db.Product
+                .Where(x => x.DeletedAt == null)
                 .Select(x => new GenericComboResponse.Item
                 {
                     Id = x.Id,
@@ -89,6 +90,7 @@ namespace SoderiaLaNueva_Api.Services
                         Price = x.Price,
                         Type = x.Type.Name,
                         CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                        IsActive = x.DeletedAt == null,
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
@@ -103,7 +105,7 @@ namespace SoderiaLaNueva_Api.Services
             var response = new GenericResponse<GetOneResponse>();
             var product = await _db
                 .Product
-                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Id == rq.Id);
 
              if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
@@ -140,12 +142,18 @@ namespace SoderiaLaNueva_Api.Services
             if (!await _db.ProductType.AnyAsync(x => x.Id == rq.TypeId))
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
-            // Duplicate product
-            if (await _db.Product.AnyAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId))
-                return response.SetError(Messages.Error.DuplicateEntity("producto y tipo"));
+            // Duplicated product?
+            var duplicatedProduct = await _db
+                .Product
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId);
+
+            if (duplicatedProduct != null)
+                return response.SetError($"{Messages.Error.DuplicateEntity("producto y tipo")} ({(duplicatedProduct.DeletedAt == null ? "Activo" : "Inactivo")})");
 
             // Save changes
-           _db.Product.Add(product);
+            _db.Product.Add(product);
+
             try
             {
                 await _db.Database.BeginTransactionAsync();
@@ -179,7 +187,7 @@ namespace SoderiaLaNueva_Api.Services
             var product = await _db
                 .Product
                 .Include(x => x.Type)
-                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Id == rq.Id);
 
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
@@ -198,7 +206,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
             // Check if the name and type is duplicated
-            if (await _db.Product.AnyAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId && x.Id != rq.Id))
+            if (await _db.Product.AnyAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId && x.Id != rq.Id))
                 return response.SetError(Messages.Error.DuplicateEntity("producto"));
 
             // Save changes
@@ -230,27 +238,64 @@ namespace SoderiaLaNueva_Api.Services
             var response = new GenericResponse();
 
             // Retrieve product
-            var product = await _db.Product.FirstOrDefaultAsync(x => x.Id == rq.Id);
+            var product = await _db
+                .Product
+                .FirstOrDefaultAsync(x => x.Id == rq.Id && x.DeletedAt == null);
+
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
+
+            var clientProducts = await _db
+                .ClientProduct
+                .Where(x => x.ProductId == rq.Id)
+                .ToListAsync();
 
             // Delete product
             product.DeletedAt = DateTime.UtcNow;
 
+            // Delete client products
+            clientProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow);
+
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
             response.Message = Messages.CRUD.EntityDeleted("Producto");
+            return response;
+        }
+
+        public async Task<GenericResponse> Activate(ActivateRequest rq)
+        {
+            var response = new GenericResponse();
+
+            // Retrieve product
+            var product = await _db
+                .Product
+                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+
+            if (product == null)
+                return response.SetError(Messages.Error.EntityNotFound("Producto"));
+
+            // Restore product
+            product.DeletedAt = null;
+
+            // Save changes
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                return response.SetError(Messages.Error.Exception());
+            }
+
+            response.Message = Messages.CRUD.EntityActivated("Producto");
             return response;
         }
 
@@ -369,6 +414,22 @@ namespace SoderiaLaNueva_Api.Services
                 var dateToUTC = DateTime.SpecifyKind(rq.DateTo.Value, DateTimeKind.Utc).Date;
 
                 query = query.Where(x => x.CreatedAt.Date >= dateFromUTC && x.CreatedAt.Date <= dateToUTC);
+            }
+
+            if (rq.Statuses.Count > 0)
+            {
+                if (rq.Statuses.Contains("active") && !rq.Statuses.Contains("inactive"))
+                {
+                    query = query.Where(x => x.DeletedAt == null);
+                }
+                else if (rq.Statuses.Contains("inactive") && !rq.Statuses.Contains("active"))
+                {
+                    query = query.Where(x => x.DeletedAt != null);
+                }
+            }
+            else
+            {
+                query = query.Where(x => x.DeletedAt == null);
             }
 
             return query;

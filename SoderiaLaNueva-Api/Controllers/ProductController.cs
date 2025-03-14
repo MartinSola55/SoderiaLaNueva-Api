@@ -60,6 +60,13 @@ namespace SoderiaLaNueva_Api.Controllers
             return await _productService.Delete(rq);
         }
 
+        [HttpPost]
+        [Authorize(Policy = Policies.Admin)]
+        public async Task<GenericResponse> Activate([FromBody] ActivateRequest rq)
+        {
+            return await _productService.Activate(rq);
+        }
+
         #endregion
 
         #region Search

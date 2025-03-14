@@ -1,5 +1,4 @@
-﻿using Humanizer;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.    EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
@@ -516,7 +515,7 @@ namespace SoderiaLaNueva_Api.Services
                     var product = await _db
                         .Product
                         .OrderByDescending(x => x.CreatedAt)
-                        .FirstOrDefaultAsync(x => x.TypeId == subscriptionProduct.ProductTypeId);
+                        .FirstOrDefaultAsync(x => x.DeletedAt == null && x.TypeId == subscriptionProduct.ProductTypeId);
 
                     if (product is null)
                     {
@@ -815,7 +814,6 @@ namespace SoderiaLaNueva_Api.Services
         #endregion
 
         #region Validations
-
         private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
     {
             var response = new GenericResponse<T>();
@@ -835,15 +833,25 @@ namespace SoderiaLaNueva_Api.Services
             if (!string.IsNullOrEmpty(entity.TaxCondition) && !TaxCondition.Validate(entity.TaxCondition))
                 return response.SetError(Messages.Error.InvalidField("condición frente al IVA"));
 
+            if (!string.IsNullOrEmpty(entity.DealerId) && !await _db.User.AnyAsync(x => x.Id == entity.DealerId))
+                return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
+
             // Check duplicate client. Same CUIT or same name and address
-            if (await _db.Client.AnyAsync(x => x.Id != entity.Id && x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
-            || x.Name.ToLower() == entity.Name.ToLower())))
+            var duplicated = await _db
+                .Client
+                .Where(x => x.Id != entity.Id)
+                .Where(x => (!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower()) || x.Name.ToLower() == entity.Name.ToLower())
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            if (duplicated != null && duplicated.IsActive)
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
             }
-
-            if (!string.IsNullOrEmpty(entity.DealerId) && !await _db.User.AnyAsync(x => x.Id == entity.DealerId))
-                return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
+            else if (duplicated != null)
+            {
+                return response.SetError(Messages.Error.InactiveClient(duplicated.Name));
+            }
 
             return response;
         }
@@ -857,13 +865,13 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<T>();
 
-            if (!await _db.Product.AnyAsync(x => productIds.Contains(x.Id)))
+            if (!await _db.Product.AnyAsync(x => x.DeletedAt == null && productIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("productos"));
 
             // Check duplicate types
             var productTypes = await _db
                 .Product
-                .Where(x => productIds.Contains(x.Id))
+                .Where(x => x.DeletedAt == null && productIds.Contains(x.Id))
                 .Select(x => x.TypeId)
                 .ToListAsync();
 

@@ -151,6 +151,10 @@
             {
                 return entityName + " eliminad" + (femine ? "a" : "o") + " correctamente.";
             }
+            public static string EntityActivated(string entityName, bool femine = false)
+            {
+                return entityName + " activad" + (femine ? "a" : "o") + " correctamente.";
+            }
         }
         public class Operations
         {
