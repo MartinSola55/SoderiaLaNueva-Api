@@ -1,5 +1,4 @@
-﻿using Humanizer;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.    EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
@@ -7,8 +6,6 @@ using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.Net;
-using static Amazon.S3.Util.S3EventNotification;
 
 namespace SoderiaLaNueva_Api.Services
 {
@@ -251,29 +248,6 @@ namespace SoderiaLaNueva_Api.Services
             // Validate request
             if (!response.Attach(await ValidateFields<CreateResponse>(client)).Success)
                 return response;
-
-            // Check duplicate client. Same CUIT or same name and address
-            var existingClient = await _db
-                .Client
-                .AsNoTracking()
-                .Include(x => x.Address)
-                .FirstOrDefaultAsync(x => x.Id != client.Id && x.IsActive && ((!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(client.CUIT) && x.CUIT.ToLower() == client.CUIT.ToLower())
-                    || (x.Name.ToLower() == client.Name.ToLower() && client.Address.Country == x.Address.Country && client.Address.City == x.Address.City && client.Address.Road == x.Address.Road && client.Address.HouseNumber == x.Address.HouseNumber )));
-
-            if (existingClient != null)
-            {
-                response.Data = new CreateResponse
-                {
-                    ID = existingClient.Id,
-                    Name = existingClient.Name,
-                    CUIT = existingClient.CUIT,
-                    Phone = existingClient.Phone,
-                    Address = existingClient.Address.Road + " " + existingClient.Address.HouseNumber,
-                    //TODO, Reactivar inactivos??
-                    IsActive = existingClient.DeletedAt == null
-                };
-                return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
-            }
 
             // Validate products
             if (rq.Products.Any(x => x.Quantity < 0))
@@ -541,7 +515,7 @@ namespace SoderiaLaNueva_Api.Services
                     var product = await _db
                         .Product
                         .OrderByDescending(x => x.CreatedAt)
-                        .FirstOrDefaultAsync(x => x.TypeId == subscriptionProduct.ProductTypeId);
+                        .FirstOrDefaultAsync(x => x.DeletedAt == null && x.TypeId == subscriptionProduct.ProductTypeId);
 
                     if (product is null)
                     {
@@ -840,12 +814,6 @@ namespace SoderiaLaNueva_Api.Services
         #endregion
 
         #region Validations
-
-        private static bool SameAddress(Client client, Client newClient)
-        {
-            return client.Address.Country == newClient.Address.Country && client.Address.City == newClient.Address.City && client.Address.Road == newClient.Address.Road && client.Address.HouseNumber == newClient.Address.HouseNumber;
-        }
-
         private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
     {
             var response = new GenericResponse<T>();
@@ -868,6 +836,23 @@ namespace SoderiaLaNueva_Api.Services
             if (!string.IsNullOrEmpty(entity.DealerId) && !await _db.User.AnyAsync(x => x.Id == entity.DealerId))
                 return response.SetError(Messages.Error.EntityNotFound("Repartidor"));
 
+            // Check duplicate client. Same CUIT or same name and address
+            var duplicated = await _db
+                .Client
+                .Where(x => x.Id != entity.Id)
+                .Where(x => (!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower()) || x.Name.ToLower() == entity.Name.ToLower())
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            if (duplicated != null && duplicated.IsActive)
+            {
+                return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
+            }
+            else if (duplicated != null)
+            {
+                return response.SetError(Messages.Error.InactiveClient(duplicated.Name));
+            }
+
             return response;
         }
 
@@ -880,13 +865,13 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<T>();
 
-            if (!await _db.Product.AnyAsync(x => productIds.Contains(x.Id)))
+            if (!await _db.Product.AnyAsync(x => x.DeletedAt == null && productIds.Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("productos"));
 
             // Check duplicate types
             var productTypes = await _db
                 .Product
-                .Where(x => productIds.Contains(x.Id))
+                .Where(x => x.DeletedAt == null && productIds.Contains(x.Id))
                 .Select(x => x.TypeId)
                 .ToListAsync();
 

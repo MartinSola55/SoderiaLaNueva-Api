@@ -28,7 +28,6 @@ public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContex
         builder.Entity<ClientSubscription>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Expense>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<PaymentMethod>().HasQueryFilter(x => x.DeletedAt == null);
-        builder.Entity<Product>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<ProductType>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Models.Route>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Subscription>().HasQueryFilter(x => x.DeletedAt == null);

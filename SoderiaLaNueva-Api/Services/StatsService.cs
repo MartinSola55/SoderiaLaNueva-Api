@@ -192,12 +192,12 @@ namespace SoderiaLaNueva_Api.Services
         {
             var response = new GenericResponse<GetProductSalesResponse>();
 
-            if (!await _db.Product.AnyAsync(x => x.Id == rq.ProductId))
+            if (!await _db.Product.AnyAsync(x => x.DeletedAt == null && x.Id == rq.ProductId))
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
 
             var productType = await _db
                 .Product
-                .Where(x => x.Id == rq.ProductId)
+                .Where(x => x.DeletedAt == null && x.Id == rq.ProductId)
                 .Select(x => x.TypeId)
                 .FirstOrDefaultAsync();
 

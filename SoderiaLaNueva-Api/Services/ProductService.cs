@@ -37,6 +37,7 @@ namespace SoderiaLaNueva_Api.Services
         public async Task<GenericResponse<GenericComboResponse>> GetComboProducts()
         {
             var items = await _db.Product
+                .Where(x => x.DeletedAt == null)
                 .Select(x => new GenericComboResponse.Item
                 {
                     Id = x.Id,
@@ -62,7 +63,6 @@ namespace SoderiaLaNueva_Api.Services
             var query = _db
                 .Product
                 .Include(x => x.Type)
-                .IgnoreQueryFilters()
                 .AsQueryable();
 
             query = FilterQuery(query, rq);
@@ -105,7 +105,7 @@ namespace SoderiaLaNueva_Api.Services
             var response = new GenericResponse<GetOneResponse>();
             var product = await _db
                 .Product
-                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Id == rq.Id);
 
              if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
@@ -142,13 +142,18 @@ namespace SoderiaLaNueva_Api.Services
             if (!await _db.ProductType.AnyAsync(x => x.Id == rq.TypeId))
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
-            // Duplicate product
-            var duplicatedProduct = await _db.Product.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId);
+            // Duplicated product?
+            var duplicatedProduct = await _db
+                .Product
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId);
+
             if (duplicatedProduct != null)
                 return response.SetError($"{Messages.Error.DuplicateEntity("producto y tipo")} ({(duplicatedProduct.DeletedAt == null ? "Activo" : "Inactivo")})");
 
             // Save changes
             _db.Product.Add(product);
+
             try
             {
                 await _db.Database.BeginTransactionAsync();
@@ -182,7 +187,7 @@ namespace SoderiaLaNueva_Api.Services
             var product = await _db
                 .Product
                 .Include(x => x.Type)
-                .FirstOrDefaultAsync(x => x.Id == rq.Id);
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Id == rq.Id);
 
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
@@ -201,7 +206,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.EntityNotFound("Tipo de producto"));
 
             // Check if the name and type is duplicated
-            if (await _db.Product.AnyAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId && x.Id != rq.Id))
+            if (await _db.Product.AnyAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId && x.Id != rq.Id))
                 return response.SetError(Messages.Error.DuplicateEntity("producto"));
 
             // Save changes
@@ -233,24 +238,31 @@ namespace SoderiaLaNueva_Api.Services
             var response = new GenericResponse();
 
             // Retrieve product
-            var product = await _db.Product.FirstOrDefaultAsync(x => x.Id == rq.Id);
+            var product = await _db
+                .Product
+                .FirstOrDefaultAsync(x => x.Id == rq.Id && x.DeletedAt == null);
 
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
 
+            var clientProducts = await _db
+                .ClientProduct
+                .Where(x => x.ProductId == rq.Id)
+                .ToListAsync();
+
             // Delete product
             product.DeletedAt = DateTime.UtcNow;
+
+            // Delete client products
+            clientProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow);
 
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -265,25 +277,21 @@ namespace SoderiaLaNueva_Api.Services
             // Retrieve product
             var product = await _db
                 .Product
-                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
 
-            // Delete product
+            // Restore product
             product.DeletedAt = null;
 
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -423,7 +431,6 @@ namespace SoderiaLaNueva_Api.Services
             {
                 query = query.Where(x => x.DeletedAt == null);
             }
-
 
             return query;
         }
