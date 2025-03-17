@@ -69,6 +69,22 @@ namespace SoderiaLaNueva_Api.Services
                  .Where(x => x.Id == rq.Id)
                 .AsQueryable();
 
+            // Check if there's any product that doesn't exist anymore
+            var cartProducts = await _db
+                .CartProduct
+                .Where(x => x.CartId == rq.Id)
+                .Select(x => x.ProductTypeId)
+                .ToListAsync();
+
+            var clientProducts = await _db
+                .ClientProduct
+                .Where(x => x.ClientId == query.First().ClientId)
+                .Select(x => x.Product.TypeId)
+                .ToListAsync();
+
+            if (!cartProducts.All(x => clientProducts.Contains(x)))
+                return response.SetError(Messages.Error.CannotEditCart());
+
             return new GenericResponse<GetOneResponse>()
             {
                 Data = await query.Select(x => new GetOneResponse()

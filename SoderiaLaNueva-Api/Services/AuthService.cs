@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
@@ -9,10 +8,9 @@ using SoderiaLaNueva_Api.Models.DAO.Auth;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class AuthService(SignInManager<ApiUser> signInManager, APIContext context, TokenService tokenService)
+    public class AuthService(SignInManager<ApiUser> signInManager, TokenService tokenService)
     {
         private readonly SignInManager<ApiUser> _signInManager = signInManager;
-        private readonly APIContext _db = context;
         private readonly TokenService _tokenService = tokenService;
 
         public async Task<GenericResponse<LoginResponse>> Login(LoginRequest rq)

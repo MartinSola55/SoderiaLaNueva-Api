@@ -132,6 +132,13 @@
             {
                 return "No existe un producto cargado en el sistema para el tipo de producto " + name + " que se encuentra en el abono.";
             }
+            public static string ProductNotInSubscription()
+            {
+                return "No puede quitar un producto que se encuentre dentro de un abono asociado al cliente.";
+            } public static string CannotEditCart()
+            {
+                return "No puede editar la bajada ya que el cliente ya no posee uno de los productos bajados.";
+            }
         }
         public class CRUD
         {
@@ -150,6 +157,10 @@
             public static string EntityDeleted(string entityName, bool femine = false)
             {
                 return entityName + " eliminad" + (femine ? "a" : "o") + " correctamente.";
+            }
+            public static string EntityDeactivated(string entityName, bool femine = false)
+            {
+                return entityName + " desactivad" + (femine ? "a" : "o") + " correctamente.";
             }
             public static string EntityActivated(string entityName, bool femine = false)
             {

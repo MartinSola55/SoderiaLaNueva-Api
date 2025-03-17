@@ -418,8 +418,33 @@ namespace SoderiaLaNueva_Api.Services
 
             var products = await _db
                 .ClientProduct
+                .Include(x => x.Product)
+                    .ThenInclude(x => x.Type)
                 .Where(x => x.ClientId == rq.ClientId)
                 .ToListAsync();
+
+            // Validate subscriptions
+            var clientSubscriptions = await _db
+                .ClientSubscription
+                .Include(x => x.Subscription)
+                    .ThenInclude(x => x.Products)
+                .Where(x => x.ClientId == rq.ClientId)
+                .ToListAsync();
+
+            var productsInSubscriptions = clientSubscriptions
+                .SelectMany(x => x.Subscription.Products)
+                .ToList();
+
+            var rqTypes = await _db.Product
+                .Where(x => rq.Products.Select(x => x.ProductId).Contains(x.Id))
+                .Select(x => x.TypeId)
+                .ToListAsync();
+
+            foreach (var product in productsInSubscriptions)
+            {
+                if (!rqTypes.Any(x => x == product.ProductTypeId))
+                    return response.SetError(Messages.Error.ProductNotInSubscription());
+            }
 
             var nonExistentProducts = products.Where(x => !rq.Products.Select(x => x.ProductId).Contains(x.ProductId)).ToList();
             var newProducts = rq.Products.Where(x => !products.Select(x => x.ProductId).Contains(x.ProductId)).ToList();
@@ -839,8 +864,11 @@ namespace SoderiaLaNueva_Api.Services
             // Check duplicate client. Same CUIT or same name and address
             var duplicated = await _db
                 .Client
+                .Include(x => x.Address)
                 .Where(x => x.Id != entity.Id)
-                .Where(x => (!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower()) || x.Name.ToLower() == entity.Name.ToLower())
+                .Where(x =>
+                    (!string.IsNullOrEmpty(x.CUIT) && !string.IsNullOrEmpty(entity.CUIT) && x.CUIT.ToLower() == entity.CUIT.ToLower())
+                    || (x.Name.ToLower() == entity.Name.ToLower() && x.Address.Lat == entity.Address.Lat && x.Address.Lon == entity.Address.Lon))
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
 

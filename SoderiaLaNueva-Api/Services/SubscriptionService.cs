@@ -458,6 +458,9 @@ namespace SoderiaLaNueva_Api.Services
             if (entity.Products.Any(x => x.Quantity < 0))
                 return response.SetError(Messages.Error.FieldGraterThanZero("cantidad"));
 
+            if (await _db.Subscription.AnyAsync(x => x.Id != entity.Id && x.Name.ToLower() == entity.Name.ToLower() && x.Price == entity.Price))
+                return response.SetError(Messages.Error.DuplicateEntity("Abono"));
+
             if (!await _db.ProductType.AnyAsync(x => entity.Products.Select(x => x.ProductTypeId).Contains(x.Id)))
                 return response.SetError(Messages.Error.EntitiesNotFound("tipos de producto"));
 

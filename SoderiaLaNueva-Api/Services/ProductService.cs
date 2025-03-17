@@ -146,7 +146,7 @@ namespace SoderiaLaNueva_Api.Services
             var duplicatedProduct = await _db
                 .Product
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.TypeId == rq.TypeId);
+                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.Price == rq.Price && x.TypeId == rq.TypeId);
 
             if (duplicatedProduct != null)
                 return response.SetError($"{Messages.Error.DuplicateEntity("producto y tipo")} ({(duplicatedProduct.DeletedAt == null ? "Activo" : "Inactivo")})");
@@ -245,16 +245,32 @@ namespace SoderiaLaNueva_Api.Services
             if (product == null)
                 return response.SetError(Messages.Error.EntityNotFound("Producto"));
 
-            var clientProducts = await _db
-                .ClientProduct
-                .Where(x => x.ProductId == rq.Id)
+            var clients = await _db
+                .Client
+                .Include(x => x.Products)
+                .Include(x => x.Subscriptions)
+                    .ThenInclude(x => x.Subscription)
+                        .ThenInclude(x => x.Products)
+                .Where(x => x.Products.Any(p => p.ProductId == rq.Id))
                 .ToListAsync();
 
             // Delete product
             product.DeletedAt = DateTime.UtcNow;
 
-            // Delete client products
-            clientProducts.ForEach(x => x.DeletedAt = DateTime.UtcNow);
+            // Delete client products and subscriptions
+            foreach (var client in clients)
+            {
+                client.Products
+                    .Where(x => x.ProductId == rq.Id)
+                    .ToList()
+                    .ForEach(x => x.DeletedAt = DateTime.UtcNow);
+
+                client.Subscriptions
+                    .Where(x => x.Subscription.Products.Any(p => p.ProductTypeId == product.TypeId))
+                    .ToList()
+                    .ForEach(x => x.DeletedAt = DateTime.UtcNow);
+            }
+
 
             // Save changes
             try
@@ -266,7 +282,7 @@ namespace SoderiaLaNueva_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityDeleted("Producto");
+            response.Message = Messages.CRUD.EntityDeactivated("Producto");
             return response;
         }
 

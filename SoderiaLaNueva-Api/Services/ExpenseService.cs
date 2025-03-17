@@ -8,9 +8,11 @@ using System.Data;
 
 namespace SoderiaLaNueva_Api.Services
 {
-    public class ExpenseService(APIContext context)
+    public class ExpenseService(APIContext context, AuthService authService, TokenService tokenService)
     {
         private readonly APIContext _db = context;
+        private readonly AuthService _auth = authService;
+        private readonly Token _token = tokenService.GetToken();
 
         #region Methods
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
@@ -182,7 +184,7 @@ namespace SoderiaLaNueva_Api.Services
         #endregion
 
         #region Helpers
-        private static IQueryable<Expense> FilterQuery(IQueryable<Expense> query, GetAllRequest rq)
+        private IQueryable<Expense> FilterQuery(IQueryable<Expense> query, GetAllRequest rq)
         {
             if (rq.DateFrom <= rq.DateTo)
             {
@@ -191,6 +193,9 @@ namespace SoderiaLaNueva_Api.Services
 
                 query = query.Where(x => x.CreatedAt >= dateFromUTC && x.CreatedAt < dateToUTC);
             }
+
+            if (!_auth.IsAdmin())
+                query = query.Where(x => x.DealerId == _token.UserId);
 
             return query;
         }
