@@ -1,4 +1,4 @@
-﻿using Microsoft.    EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SoderiaLaNueva_Api.DAL.DB;
 using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
@@ -134,10 +134,10 @@ namespace SoderiaLaNueva_Api.Services
                     .ThenInclude(x => x.Product)
                         .ThenInclude(x => x.Type)
                 .Include(x => x.Subscriptions)
+                .Where(x => x.IsActive)
                 .Select(x => new
                 {
                     x.Id,
-                    x.IsActive,
                     x.Name,
                     Address = new GetOneResponse.AddressItem
                     {
@@ -179,9 +179,6 @@ namespace SoderiaLaNueva_Api.Services
 
             if (client is null)
                 return response.SetError(Messages.Error.EntityNotFound("Cliente"));
-
-            if (!client.IsActive)
-                return response.SetError(Messages.Error.InactiveClient(client.Name));
 
             var salesHistory = await GetCartsTransfersHistory(client.Id);
             var productHistory = await GetProductHistory(client.Id);
@@ -875,10 +872,6 @@ namespace SoderiaLaNueva_Api.Services
             if (duplicated != null && duplicated.IsActive)
             {
                 return response.SetError(Messages.Error.DuplicateEntity("Cliente"));
-            }
-            else if (duplicated != null)
-            {
-                return response.SetError(Messages.Error.InactiveClient(duplicated.Name));
             }
 
             return response;
