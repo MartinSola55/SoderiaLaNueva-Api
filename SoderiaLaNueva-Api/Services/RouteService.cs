@@ -23,6 +23,7 @@ namespace SoderiaLaNueva_Api.Services
             .Client
             .Include(x => x.Carts)
                 .ThenInclude(x => x.Route)
+            .Include(x => x.Address)
             .Where(x => !x.Carts.Select(x => x.RouteId).Contains(rq.Id))
             .AsQueryable();
 
@@ -37,8 +38,8 @@ namespace SoderiaLaNueva_Api.Services
                         Name = x.Name,
                         Address = new GetClientsListResponse.AddressItem
                         {
-                            HouseNumber = x.Address.HouseNumber,
-                            Road = x.Address.Road,
+                            HouseNumber = x.Address.HouseNumber ?? "",
+                            Road = x.Address.Road ?? "",
                         }
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
