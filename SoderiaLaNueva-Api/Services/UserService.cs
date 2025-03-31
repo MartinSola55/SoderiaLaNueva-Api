@@ -407,7 +407,8 @@ namespace SoderiaLaNueva_Api.Services
             return column switch
             {
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
-                _ => query.OrderByDescending(x => x.CreatedAt),
+                "name" => direction == "asc" ? query.OrderBy(x => x.FullName) : query.OrderByDescending(x => x.FullName),
+                _ => query.OrderBy(x => x.FullName),
             };
         }
         #endregion
