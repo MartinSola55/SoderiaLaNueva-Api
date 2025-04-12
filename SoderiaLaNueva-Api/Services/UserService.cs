@@ -232,8 +232,10 @@ namespace SoderiaLaNueva_Api.Services
                     return response.SetError(Messages.Error.DuplicateEmail());
 
                 // Update user data
+                user.RoleId = rq.RoleId;
                 user.FullName = rq.FullName;
             }
+
             // Update user data
             user.PhoneNumber = rq.PhoneNumber;
             user.UpdatedAt = DateTime.UtcNow;
