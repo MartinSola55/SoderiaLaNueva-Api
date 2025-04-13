@@ -4,6 +4,7 @@ using SoderiaLaNueva_Api.Models;
 using SoderiaLaNueva_Api.Models.Constants;
 using SoderiaLaNueva_Api.Models.DAO;
 using SoderiaLaNueva_Api.Models.DAO.Client;
+using SoderiaLaNueva_Api.Models.DAO.Route;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 
@@ -69,9 +70,40 @@ namespace SoderiaLaNueva_Api.Services
             };
             return response;
         }
+
+        public async Task<GenericResponse<GetLastProductsResponse>> GetLastProducts(GetLastProductsRequest rq)
+        {
+            var carts = await _db
+                .Cart
+                .Include(x => x.Products)
+                    .ThenInclude(x => x.Type)
+                .Where(x => x.ClientId == rq.ClientId)
+                .ToListAsync();
+
+            var response = new GenericResponse<GetLastProductsResponse>
+            {
+                Data = new GetLastProductsResponse
+                {
+                    LastProducts = carts
+                        .OrderByDescending(z => z.CreatedAt)
+                        .Take(10)
+                        .SelectMany(z => z.Products)
+                        .Select(z => new GetLastProductsResponse.ProductItem
+                        {
+                            Date = z.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                            Name = z.Type.Name,
+                            ReturnedQuantity = z.ReturnedQuantity,
+                            SoldQuantity = z.SoldQuantity
+                        }).ToList()
+                }
+            };
+
+            return response;
+        }
+
         #endregion
 
-        #region CRUD
+    #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db

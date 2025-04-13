@@ -24,7 +24,6 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public string CreatedAt { get; set; } = null!;
             public string UpdatedAt { get; set; } = null!;
 
-            public List<ProductItem> LastProducts { get; set; } = [];
         }
 
         public class AddressItem
@@ -43,15 +42,6 @@ namespace SoderiaLaNueva_Api.Models.DAO.Route
             public string? Postcode { get; set; }
             public string Lat { get; set; } = null!;
             public string Lon { get; set; } = null!;
-        }
-
-        public class ProductItem
-        {
-            public string Date { get; set; } = null!;
-            public string Name { get; set; } = null!;
-            public int SoldQuantity { get; set; }
-            public int ReturnedQuantity { get; set; }
-
         }
     }
 }

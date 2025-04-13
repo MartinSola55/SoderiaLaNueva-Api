@@ -158,18 +158,6 @@ namespace SoderiaLaNueva_Api.Services
                     Phone = y.Client.Phone,
                     CreatedAt = y.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                     UpdatedAt = y.UpdatedAt.HasValue ? y.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : "",
-                    LastProducts = y.Client
-                        .Carts
-                        .OrderByDescending(z => z.CreatedAt)
-                        .Take(10)
-                        .SelectMany(z => z.Products)
-                        .Select(z => new GetStaticRouteResponse.ProductItem
-                        {
-                            Date = z.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
-                            Name = z.Type.Name,
-                            ReturnedQuantity = z.ReturnedQuantity,
-                            SoldQuantity = z.SoldQuantity
-                        }).ToList()
                 }).ToList()
             }).FirstOrDefaultAsync();
             return response;
