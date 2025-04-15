@@ -51,7 +51,8 @@ namespace SoderiaLaNueva_Api.Services
         {
             var query = _db
                 .ClientProduct
-                .Include(x => x.Product.Type)
+                .Include(x => x.Product)
+                    .ThenInclude(x => x.Type)
                 .Where(x => x.ClientId == rq.Id)
                 .AsQueryable();
 
@@ -103,7 +104,7 @@ namespace SoderiaLaNueva_Api.Services
 
         #endregion
 
-    #region CRUD
+        #region CRUD
         public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db
@@ -199,7 +200,7 @@ namespace SoderiaLaNueva_Api.Services
                     x.CUIT,
                     x.Observations,
                     x.CreatedAt,
-                    Products = x.Products.Select(x => new GetOneResponse.ProductItem 
+                    Products = x.Products.Select(x => new GetOneResponse.ProductItem
                     {
                         Id = x.Product.Id,
                         Name = $"{x.Product.Type.Name} - ${x.Product.Price}",
@@ -269,8 +270,8 @@ namespace SoderiaLaNueva_Api.Services
                 Observations = rq.Observations,
                 DeliveryDay = rq.DeliveryDay,
                 HasInvoice = rq.HasInvoice,
-                InvoiceType = rq.HasInvoice ? rq.InvoiceType: string.Empty,
-                TaxCondition = rq.HasInvoice ? rq.TaxCondition: string.Empty,
+                InvoiceType = rq.HasInvoice ? rq.InvoiceType : string.Empty,
+                TaxCondition = rq.HasInvoice ? rq.TaxCondition : string.Empty,
                 CUIT = rq.HasInvoice ? rq.CUIT : string.Empty
             };
 
@@ -553,9 +554,10 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => rq.SubscriptionIds.Contains(x.Id))
                 .SelectMany(x => x.Products)
                 .GroupBy(x => x.ProductTypeId)
-                .Select(g => new { 
+                .Select(g => new
+                {
                     ProductTypeId = g.Key,
-                    TotalAvailable = g.Sum(p => p.Quantity) 
+                    TotalAvailable = g.Sum(p => p.Quantity)
                 })
                 .ToListAsync();
 
@@ -805,7 +807,7 @@ namespace SoderiaLaNueva_Api.Services
 
             return [.. cartsTransfersHistory.OrderByDescending(x => DateTime.ParseExact(x.Date, "dd/MM/yyyy", null))];
         }
-        
+
         private async Task<List<GetOneResponse.ProductHistoryItem>> GetProductHistory(int clientId)
         {
             var productsHistory = new List<GetOneResponse.ProductHistoryItem>();
@@ -869,12 +871,12 @@ namespace SoderiaLaNueva_Api.Services
 
         #region Validations
         private async Task<GenericResponse<T>> ValidateFields<T>(Client entity)
-    {
+        {
             var response = new GenericResponse<T>();
 
             if (string.IsNullOrEmpty(entity.Name) || entity.Address == null || string.IsNullOrEmpty(entity.Phone))
                 return response.SetError(Messages.Error.FieldsRequired());
-            
+
             if (!ValidatePhone(entity.Phone))
                 return response.SetError(Messages.Error.InvalidPhone());
 
