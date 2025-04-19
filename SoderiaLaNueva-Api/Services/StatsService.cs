@@ -371,18 +371,18 @@ namespace SoderiaLaNueva_Api.Services
             var nonVisitedCarts = routes
                 .SelectMany(x => x.Carts)
                 .Where(x => x.Status != CartStatuses.Pending && x.Status != CartStatuses.Confirmed)
-                .Select(x => new { x.ClientId, x.Client.Name, x.Client.Address.City })
+                .Select(x => new { x.ClientId, x.Client.Name, x.Client.Address?.HouseNumber, x.Client.Address?.Road, x.Client.Address?.City })
                 .GroupBy(x => x.ClientId)
                 .Select(g => new
                 {
                     ClientId = g.Key,
                     g.First().Name,
                     g.First().City,
+                    g.First().HouseNumber,
+                    g.First().Road,
                     Count = g.Count()
                 })
                 .ToList();
-
-            //TODO PONER TODA DIRECCION
 
             return new GenericResponse<NonVisitedClientsResponse>()
             {
@@ -393,7 +393,12 @@ namespace SoderiaLaNueva_Api.Services
                     Clients = nonVisitedCarts.Select(x => new NonVisitedClientsResponse.ClientItem
                     {
                         Name = x.Name,
-                        Address = x.City,
+                        Address = new NonVisitedClientsResponse.ClientItem.AddressItem
+                        {
+                            HouseNumber = x.HouseNumber ?? string.Empty,
+                            Road = x.Road ?? string.Empty,
+                            City = x.City ?? string.Empty
+                        }
                     }).ToList()
                 }
             };

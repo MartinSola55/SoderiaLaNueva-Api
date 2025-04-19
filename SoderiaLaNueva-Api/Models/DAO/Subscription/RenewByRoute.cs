@@ -10,7 +10,7 @@ namespace SoderiaLaNueva_Api.Models.DAO.Subscription
 
         public class ClientDebt
         {
-            public int ClienId { get; set; }
+            public int ClientId { get; set; }
             public decimal Debt { get; set; }
         }
     }

@@ -550,6 +550,7 @@ namespace SoderiaLaNueva_Api.Services
                 .Where(x => !x.IsStatic)
                 .Where(x => x.DealerId == _token.UserId && x.DeliveryDay == rq.DeliveryDay)
                 .OrderByDescending(x => x.CreatedAt)
+                .Take(10)
                 .AsQueryable();
 
             var productTypes = await _db
@@ -800,7 +801,7 @@ namespace SoderiaLaNueva_Api.Services
                 _db.CartProduct.RemoveRange(deletedCart.Products);
                 _db.CartPaymentMethod.RemoveRange(deletedCart.PaymentMethods);
                 _db.Cart.Remove(deletedCart);
-            };
+            }
 
             var client = await _db.Client
                 .Include(x => x.Products)
@@ -818,7 +819,7 @@ namespace SoderiaLaNueva_Api.Services
                 // Update client stock
                 clientProduct.Stock += product.ReturnedQuantity - product.SoldQuantity;
                 // Update debt
-                totalDebt += clientProduct.Product.Price * (product.SoldQuantity - product.ReturnedQuantity);
+                totalDebt += clientProduct.Product.Price * product.SoldQuantity;
 
                 // Add product to cart
                 cart.Products.Add(new()

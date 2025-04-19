@@ -16,7 +16,14 @@
         public class ClientItem
         {
             public string Name { get; set; } = null!;
-            public string Address { get; set; } = null!;
+            public AddressItem Address { get; set; } = null!;
+
+            public class AddressItem
+            {
+                public string HouseNumber { get; set; } = null!;
+                public string Road { get; set; } = null!;
+                public string City { get; set; } = null!;
+            }
         }
     }
 }

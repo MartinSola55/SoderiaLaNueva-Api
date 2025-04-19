@@ -76,7 +76,7 @@ namespace SoderiaLaNueva_Api.Services
         public async Task<GenericResponse<GetOneResponse>> GetOneById(GetOneRequest rq)
         {
             var response = new GenericResponse<GetOneResponse>();
-            
+
             var subscription = await _db
                 .Subscription
                 .Include(x => x.Products)
@@ -401,7 +401,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 ClientDebts = subscriptionsToRenew.Select(x => new RenewByRouteResponse.ClientDebt
                 {
-                    ClienId = x.Id,
+                    ClientId = x.Client.Id,
                     Debt = x.Client.Debt
                 }).ToList()
             };
