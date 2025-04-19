@@ -146,7 +146,7 @@ namespace SoderiaLaNueva_Api.Services
             var duplicatedProduct = await _db
                 .Product
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(x => x.DeletedAt == null && x.Name.ToLower() == rq.Name.ToLower() && x.Price == rq.Price && x.TypeId == rq.TypeId);
+                .FirstOrDefaultAsync(x => x.Name.ToLower() == rq.Name.ToLower() && x.Price == rq.Price && x.TypeId == rq.TypeId);
 
             if (duplicatedProduct != null)
                 return response.SetError($"{Messages.Error.DuplicateEntity("producto y tipo")} ({(duplicatedProduct.DeletedAt == null ? "Activo" : "Inactivo")})");
