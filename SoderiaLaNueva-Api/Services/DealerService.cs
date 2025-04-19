@@ -287,7 +287,7 @@ namespace SoderiaLaNueva_Api.Services
             {
                 "name" => direction == "asc" ? query.OrderBy(x => x.FullName) : query.OrderByDescending(x => x.FullName),
                 "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
-                _ => query.OrderByDescending(x => x.CreatedAt),
+                _ => query.OrderBy(x => x.FullName),
             };
         }
         #endregion
